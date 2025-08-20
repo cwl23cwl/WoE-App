@@ -1,4 +1,11 @@
+# dependencies & builds
 node_modules/
+.next/
 dist/
 build/
+
+# env & OS noise
 .env
+.env.*
+.DS_Store
+Thumbs.db
