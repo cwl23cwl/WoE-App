@@ -1,0 +1,333 @@
+// Write on English ESL Classroom App - Prisma Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  TEACHER
+  STUDENT
+  ADMIN
+}
+
+enum AssignmentType {
+  DRAWING
+  WRITING
+  VOCABULARY
+  SPEAKING
+}
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  GRADED
+  RETURNED
+}
+
+enum StudentStatus {
+  ACTIVE
+  INVITED
+  INACTIVE
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum AssignmentTemplate {
+  BLANK
+  LINED
+  GRID
+  CUSTOM
+}
+
+model User {
+  id          String        @id @default(cuid())
+  email       String        @unique
+  name        String
+  password    String
+  role        Role          @default(STUDENT)
+  avatar      String?
+  isActive    Boolean       @default(true)
+  status      StudentStatus @default(ACTIVE)
+  
+  // Student credentials for login cards
+  loginCode   String?       @unique // Auto-generated simple login code
+  inviteToken String?       @unique // Token for email invitations
+  inviteExpiry DateTime?    // Expiration for invite tokens
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Teacher relationships
+  classesTeaching Class[]      @relation("TeacherClasses")
+  assignmentsCreated Assignment[] @relation("TeacherAssignments")
+  foldersCreated AssignmentFolder[] @relation("TeacherFolders")
+  templatesCreated AssignmentTemplateLibrary[] @relation("CreatedTemplates")
+
+  // Student relationships
+  enrollments  Enrollment[]
+  submissions  Submission[]
+  schedules    Schedule[]
+
+  @@map("users")
+}
+
+model Class {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  code        String   @unique // Join code for students
+  level       String   // Beginner, Intermediate, Advanced
+  color       String   @default("#E55A3C") // Class theme color
+  isActive    Boolean  @default(true)
+  maxStudents Int?     @default(30)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  teacherId   String
+  teacher     User @relation("TeacherClasses", fields: [teacherId], references: [id], onDelete: Cascade)
+  
+  enrollments Enrollment[]
+  assignments Assignment[]
+  folders     AssignmentFolder[]
+  schedules   Schedule[]
+
+  @@index([teacherId])
+  @@index([code])
+  @@map("classes")
+}
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  joinedAt  DateTime @default(now())
+  isActive  Boolean  @default(true)
+
+  // Relationships
+  studentId String
+  student   User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  classId   String
+  class     Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, classId])
+  @@index([studentId])
+  @@index([classId])
+  @@map("enrollments")
+}
+
+model AssignmentFolder {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String   @default("#6B7280") // Folder theme color
+  position    Int      @default(0) // For ordering folders
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  teacherId   String
+  teacher     User @relation("TeacherFolders", fields: [teacherId], references: [id], onDelete: Cascade)
+  
+  classId     String
+  class       Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  
+  assignments Assignment[]
+
+  @@index([teacherId])
+  @@index([classId])
+  @@index([position])
+  @@map("assignment_folders")
+}
+
+model Assignment {
+  id           String         @id @default(cuid())
+  title        String
+  description  String?
+  type         AssignmentType @default(DRAWING)
+  
+  // Assignment access
+  accessCode   String?        @unique // 6-digit code for students
+  qrCode       String?        // QR code data
+  codeExpiry   DateTime?      // Optional expiration for codes
+  
+  // Template and layout
+  template     AssignmentTemplate @default(BLANK)
+  templateData Json?          // Custom template configuration
+  
+  // Excalidraw data stored as JSON
+  excalidrawData Json?        // Stores Excalidraw elements, appState, files
+  canvasWidth    Int?         @default(800)
+  canvasHeight   Int?         @default(600)
+  
+  // Assignment settings
+  maxScore     Int?           @default(100)
+  dueDate      DateTime?
+  isPublished  Boolean        @default(false)
+  isDraft      Boolean        @default(true)
+  allowLateSubmission Boolean @default(true)
+  allowCollaboration Boolean @default(false)
+  timeLimit    Int?           // Time limit in minutes
+  
+  // Instructions and resources
+  instructions String?        // Simple instructions
+  instructionsTTS Boolean     @default(false) // Text-to-speech support
+  resources    Json?          // Array of resource links/files
+  
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  // Relationships
+  teacherId    String
+  teacher      User @relation("TeacherAssignments", fields: [teacherId], references: [id], onDelete: Cascade)
+  
+  classId      String
+  class        Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  
+  folderId     String?
+  folder       AssignmentFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  
+  submissions  Submission[]
+
+  @@index([teacherId])
+  @@index([classId])
+  @@index([folderId])
+  @@index([dueDate])
+  @@index([accessCode])
+  @@map("assignments")
+}
+
+model Submission {
+  id        String           @id @default(cuid())
+  status    SubmissionStatus @default(DRAFT)
+  
+  // Student work - Excalidraw data
+  excalidrawData Json?        // Student's Excalidraw drawing/writing
+  textContent    String?      // Written portion if applicable
+  notes          String?      // Student's notes or reflection
+  
+  // Grading information
+  score         Int?
+  maxScore      Int?
+  feedback      String?       // Teacher feedback
+  rubricData    Json?         // Structured rubric scores
+  
+  // Timestamps
+  submittedAt   DateTime?     // When student submitted
+  gradedAt      DateTime?     // When teacher graded
+  returnedAt    DateTime?     // When returned to student
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relationships
+  studentId     String
+  student       User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  assignmentId  String
+  assignment    Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, assignmentId])
+  @@index([studentId])
+  @@index([assignmentId])
+  @@index([status])
+  @@map("submissions")
+}
+
+// Progress tracking for analytics
+model StudentProgress {
+  id            String   @id @default(cuid())
+  studentId     String
+  classId       String
+  assignmentId  String?  // Optional: track specific assignment progress
+  
+  // Progress metrics
+  completedAssignments Int @default(0)
+  averageScore         Float?
+  streakDays          Int @default(0)
+  lastActivityAt      DateTime @default(now())
+  
+  // Skill tracking
+  drawingSkillLevel   Int @default(1)
+  writingSkillLevel   Int @default(1)
+  vocabularySkillLevel Int @default(1)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([studentId, classId])
+  @@index([studentId])
+  @@index([classId])
+  @@map("student_progress")
+}
+
+// Schedule management for students and classes
+model Schedule {
+  id        String      @id @default(cuid())
+  
+  // Schedule timing
+  dayOfWeek DayOfWeek
+  startTime String      // Format: "14:00" (24-hour)
+  endTime   String      // Format: "15:30" (24-hour)
+  
+  // Schedule metadata
+  title     String?     // Optional title for the schedule
+  notes     String?     // Additional notes
+  isActive  Boolean     @default(true)
+  
+  // Relationships
+  studentId String?
+  student   User?       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  classId   String?
+  class     Class?      @relation(fields: [classId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([studentId])
+  @@index([classId])
+  @@index([dayOfWeek])
+  @@map("schedules")
+}
+
+// Assignment templates for quick creation
+model AssignmentTemplateLibrary {
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  category    String            // ESL activity category
+  type        AssignmentType
+  template    AssignmentTemplate
+  
+  // Template configuration
+  templateData Json?            // Default template settings
+  instructions String?          // Default instructions
+  
+  // Usage tracking
+  usageCount  Int               @default(0)
+  isPublic    Boolean           @default(true)
+  
+  // Relationships
+  createdBy   String
+  teacher     User              @relation("CreatedTemplates", fields: [createdBy], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([createdBy])
+  @@index([category])
+  @@index([type])
+  @@map("assignment_templates")
+}

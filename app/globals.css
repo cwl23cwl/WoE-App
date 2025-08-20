@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-white text-gray-800 font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-gray-800;
+  }
+}
+
+@layer components {
+  /* Write on English Brand Components */
+  .btn-primary {
+    @apply bg-primary hover:bg-primary-dark text-primary-foreground font-medium px-6 py-3 rounded-lg transition-all duration-200 shadow-soft hover:shadow-brand;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary hover:bg-secondary/90 text-secondary-foreground font-medium px-6 py-3 rounded-lg transition-all duration-200;
+  }
+  
+  .btn-accent {
+    @apply bg-accent hover:bg-accent/90 text-accent-foreground font-medium px-6 py-3 rounded-lg transition-all duration-200;
+  }
+  
+  .btn-outline {
+    @apply border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground font-medium px-6 py-3 rounded-lg transition-all duration-200;
+  }
+  
+  .card {
+    @apply bg-white rounded-lg shadow-soft border border-gray-100 p-6 hover:shadow-brand transition-all duration-200;
+  }
+  
+  .card-header {
+    @apply border-b border-gray-100 pb-4 mb-4;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 rounded-lg border border-gray-100 bg-gray-50 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200;
+  }
+  
+  .badge-primary {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary;
+  }
+  
+  .badge-secondary {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-secondary/10 text-secondary;
+  }
+  
+  .badge-success {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-success/10 text-success;
+  }
+  
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  /* Fixed icon sizes */
+  .icon-16 {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+  
+  /* Two-row toolbar utilities */
+  .toolbar-transition {
+    transition: opacity 200ms ease-in-out, max-height 200ms ease-in-out, visibility 200ms ease-in-out;
+  }
+  
+  .toolbar-row-hidden {
+    opacity: 0;
+    max-height: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  
+  .toolbar-row-visible {
+    opacity: 1;
+    max-height: 3rem; /* Adjust based on content height */
+    visibility: visible;
+    pointer-events: auto;
+  }
+  
+  /* Mobile responsive toolbar */
+  @media (max-width: 768px) {
+    .toolbar-row-visible {
+      max-height: 6rem; /* More height for mobile wrapping */
+    }
+  }
+}
