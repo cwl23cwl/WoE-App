@@ -46,3 +46,6 @@ Thumbs.db
 
 # Misc
 nul
+
+# Jest snapshots
+__snapshots__/
