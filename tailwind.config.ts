@@ -5,59 +5,75 @@ const config: Config = {
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
     extend: {
       colors: {
-        // Write on English Brand Colors
+        // Brand Palette
+        brand: {
+          primary: '#EC5D3A',
+          'primary-600': '#EB5733',
+          'primary-300': '#F3947D',
+        },
+        
+        // Neutral Scale
+        neutral: {
+          50: '#F9FAFB',
+          200: '#DBDBDB',
+          700: '#6B7280',
+        },
+        
+        // Text Colors
+        text: {
+          main: '#111827',
+        },
+        
+        // Support Colors
+        support: {
+          navy: '#1B2A49',
+          teal: '#3AAFA9',
+          yellow: '#FFD166',
+        },
+        
+        white: '#FFFFFF',
+        
+        // Semantic Aliases (for component compatibility)
         primary: {
-          DEFAULT: '#E55A3C',
-          light: '#F47B5C',
-          dark: '#C4472B',
+          DEFAULT: '#EC5D3A',
           foreground: '#FFFFFF',
+          600: '#EB5733',
+          300: '#F3947D',
         },
         secondary: {
-          DEFAULT: '#2E5A8A',
-          light: '#5B9BD5',
+          DEFAULT: '#3AAFA9',
           foreground: '#FFFFFF',
         },
         accent: {
-          DEFAULT: '#7BA05B',
-          light: '#A8C686',
-          foreground: '#FFFFFF',
+          DEFAULT: '#FFD166',
+          foreground: '#1B2A49',
         },
-        
-        // Modern Minimalist Neutrals
-        white: '#FFFFFF',
-        warm: {
-          50: '#FDF7F2',
+        background: '#F9FAFB',
+        foreground: '#111827',
+        card: {
+          DEFAULT: '#FFFFFF',
+          foreground: '#111827',
         },
-        gray: {
-          50: '#FAFAFA',
-          100: '#F3F4F6',
-          400: '#9CA3AF',
-          600: '#6B7280',
-          800: '#374151',
+        popover: {
+          DEFAULT: '#FFFFFF',
+          foreground: '#111827',
         },
-        
-        // Semantic Colors
-        background: '#FFFFFF',
-        foreground: '#374151',
-        border: '#F3F4F6',
-        input: '#F3F4F6',
-        ring: '#E55A3C',
-        
-        // Status Colors
-        success: '#7BA05B',
-        warning: '#F59E0B',
-        error: '#EF4444',
-        info: '#5B9BD5',
-        
-        // Muted variants
         muted: {
-          DEFAULT: '#FAFAFA',
+          DEFAULT: '#F9FAFB',
           foreground: '#6B7280',
         },
+        destructive: {
+          DEFAULT: '#EC5D3A',
+          foreground: '#FFFFFF',
+        },
+        border: '#DBDBDB',
+        input: '#FFFFFF',
+        ring: '#EC5D3A',
       },
       borderRadius: {
         lg: '0.75rem',

@@ -1,0 +1,119 @@
+:root {
+  --background: #F9F4EF;
+  --foreground: #1B2A49;
+  --card: #fff;
+  --card-foreground: #1B2A49;
+  --popover: #fff;
+  --popover-foreground: #1B2A49;
+  --primary: #EC5D3A;
+  --primary-foreground: #fff;
+  --secondary: #3AAFA9;
+  --secondary-foreground: #fff;
+  --muted: #F9F4EF;
+  --muted-foreground: #6B7280;
+  --accent: #FFD166;
+  --accent-foreground: #1B2A49;
+  --destructive: #EC5D3A;
+  --destructive-foreground: #fff;
+  --border: #E5E7EB;
+  --input: #fff;
+  --ring: #3AAFA9;
+  --chart-1: #EC5D3A;
+  --chart-2: #3AAFA9;
+  --chart-3: #FFD166;
+  --chart-4: #1B2A49;
+  --chart-5: #6B7280;
+  --sidebar: #fff;
+  --sidebar-foreground: #1B2A49;
+  --sidebar-primary: #EC5D3A;
+  --sidebar-primary-foreground: #fff;
+  --sidebar-accent: #3AAFA9;
+  --sidebar-accent-foreground: #fff;
+  --sidebar-border: #E5E7EB;
+  --sidebar-ring: #3AAFA9;
+  --font-sans: 'Inter', 'Poppins', 'Geist', sans-serif;
+  --font-serif: 'Merriweather', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius: 0.75rem;
+  --shadow-2xs: 0 1px 2px 0px rgba(27,42,73,0.03);
+  --shadow-xs: 0 1.5px 4px 0px rgba(27,42,73,0.04);
+  --shadow-sm: 0 2px 8px 0px rgba(27,42,73,0.06);
+  --shadow: 0 4px 16px 0px rgba(27,42,73,0.08);
+  --shadow-md: 0 8px 24px 0px rgba(27,42,73,0.10);
+  --shadow-lg: 0 12px 32px 0px rgba(27,42,73,0.12);
+  --shadow-xl: 0 16px 48px 0px rgba(27,42,73,0.14);
+  --shadow-2xl: 0 24px 64px 0px rgba(27,42,73,0.16);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 2rem;
+}
+
+body {
+  font-family: var(--font-sans) !important;
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--foreground) !important;
+  font-family: var(--font-sans) !important;
+}
+
+button, .btn {
+  border-radius: var(--radius-md) !important;
+  font-family: var(--font-sans) !important;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+button.primary, .btn-primary {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+
+button.secondary, .btn-secondary {
+  background: var(--secondary) !important;
+  color: var(--secondary-foreground) !important;
+}
+
+button.accent, .btn-accent {
+  background: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+}
+
+input, select, .input {
+  border-radius: var(--radius-sm) !important;
+  border: 1px solid var(--border) !important;
+  background: var(--input) !important;
+  color: var(--foreground) !important;
+  font-family: var(--font-sans) !important;
+}
+
+.card, .toolbar, .header {
+  background: var(--card) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-xs) !important;
+}
+
+.toolbar {
+  padding: 0.5rem 1rem !important;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.active, .btn.active {
+  box-shadow: 0 0 0 2px var(--primary);
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+
+.border {
+  border: 1px solid var(--border) !important;
+}
+
+.shadow {
+  box-shadow: var(--shadow) !important;
+}

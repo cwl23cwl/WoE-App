@@ -3,8 +3,26 @@
 @tailwind utilities;
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* Note: workspace-theme.css styles are included below instead of import */
 
 @layer base {
+  :root {
+    /* Brand CSS Variables */
+    --primary: #EC5D3A;
+    --primary-600: #EB5733;
+    --primary-300: #F3947D;
+    --accent: #FFD166;
+    --background: #F9FAFB;
+    --text: #111827;
+    --neutral-50: #F9FAFB;
+    --neutral-200: #DBDBDB;
+    --neutral-700: #6B7280;
+    --support-navy: #1B2A49;
+    --support-teal: #3AAFA9;
+    --support-yellow: #FFD166;
+    --white: #FFFFFF;
+  }
+
   * {
     @apply border-border;
   }
@@ -130,5 +148,21 @@
     .toolbar-row-visible {
       max-height: 6rem; /* More height for mobile wrapping */
     }
+  }
+
+  /* Workspace Theme Utilities */
+  .canvas-container {
+    position: relative;
+    background: #ffffff;
+    border-radius: 2rem;
+    box-shadow: 0 4px 16px 0px rgba(27,42,73,0.08);
+  }
+
+  .tool-active {
+    box-shadow: 0 0 0 2px theme('colors.brand.primary');
+  }
+
+  .font-inter {
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }

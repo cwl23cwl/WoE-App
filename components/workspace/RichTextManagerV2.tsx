@@ -24,9 +24,11 @@ interface EditingState {
 
 export function RichTextManagerV2({ excalidrawAPI, isMounted }: RichTextManagerV2Props) {
   const [editingState, setEditingState] = useState<EditingState | null>(null);
+  const [forceUpdateTrigger, setForceUpdateTrigger] = useState<number>(0);
   const overlayElementRef = useRef<HTMLElement | null>(null);
   const { editingTextId, setEditingTextId } = useEditingTextStore();
   const commitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastElementPropsRef = useRef<any>(null);
 
   // Handle overlay content changes
   const handleContentChange = useCallback((html: string, textContent: string) => {
@@ -101,6 +103,80 @@ export function RichTextManagerV2({ excalidrawAPI, isMounted }: RichTextManagerV
       console.error('Error committing rich text:', error);
     }
   }, [excalidrawAPI, editingState]);
+
+  // Monitor for immediate element property changes (especially font size)
+  useEffect(() => {
+    if (!excalidrawAPI || !editingTextId) return;
+
+    const monitorElementChanges = () => {
+      try {
+        const elements = excalidrawAPI.getSceneElements();
+        const currentElement = elements.find((el: any) => el.id === editingTextId);
+        
+        if (!currentElement || currentElement.type !== 'text') return;
+
+        // Check if element properties changed since last check
+        const hasChanged = !lastElementPropsRef.current || 
+          lastElementPropsRef.current.fontSize !== currentElement.fontSize ||
+          lastElementPropsRef.current.fontWeight !== currentElement.fontWeight ||
+          lastElementPropsRef.current.fontStyle !== currentElement.fontStyle ||
+          lastElementPropsRef.current.strokeColor !== currentElement.strokeColor;
+
+        if (hasChanged) {
+          console.log('⚡ Element properties changed - forcing overlay update:', {
+            fontSize: `${lastElementPropsRef.current?.fontSize || 'unknown'} → ${currentElement.fontSize}`,
+            fontWeight: `${lastElementPropsRef.current?.fontWeight || 'unknown'} → ${currentElement.fontWeight}`,
+            elementId: editingTextId
+          });
+
+          // Update our reference
+          lastElementPropsRef.current = {
+            fontSize: currentElement.fontSize,
+            fontWeight: currentElement.fontWeight,
+            fontStyle: currentElement.fontStyle,
+            strokeColor: currentElement.strokeColor
+          };
+
+          // Trigger overlay force update
+          setForceUpdateTrigger(prev => prev + 1);
+        }
+      } catch (error) {
+        console.error('Error monitoring element changes:', error);
+      }
+    };
+
+    // Listen for custom font-size-changed events for immediate response
+    const handleFontSizeChanged = (event: CustomEvent) => {
+      if (event.detail.elementId === editingTextId) {
+        console.log('⚡ Received font-size-changed event - forcing immediate update:', event.detail);
+        
+        // Immediate overlay style update for the new font size
+        if (overlayElementRef.current) {
+          const newFontSize = event.detail.fontSize;
+          const newHeight = newFontSize * 1.4;
+          overlayElementRef.current.style.fontSize = `${newFontSize}px`;
+          overlayElementRef.current.style.minHeight = `${newHeight}px`;
+          console.log('⚡ Applied immediate overlay height update:', { fontSize: newFontSize, height: newHeight });
+          
+          // Force layout recalculation
+          overlayElementRef.current.getBoundingClientRect();
+        }
+        
+        setForceUpdateTrigger(prev => prev + 1);
+      }
+    };
+
+    // Add custom event listener
+    window.addEventListener('font-size-changed', handleFontSizeChanged as EventListener);
+
+    // Very frequent monitoring for immediate response
+    const interval = setInterval(monitorElementChanges, 5); // 200fps for immediate detection
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('font-size-changed', handleFontSizeChanged as EventListener);
+    };
+  }, [excalidrawAPI, editingTextId]);
 
   // Monitor for editing state from overlay
   useEffect(() => {
@@ -251,7 +327,13 @@ export function RichTextManagerV2({ excalidrawAPI, isMounted }: RichTextManagerV
     // Update overlay immediately for instant feedback
     if (overlayElementRef.current) {
       overlayElementRef.current.style.fontSize = `${fontSize}px`;
-      console.log('🎨 RichText overlay font size updated immediately:', fontSize);
+      // CRITICAL: Also update the height immediately
+      const newHeight = fontSize * 1.4;
+      overlayElementRef.current.style.minHeight = `${newHeight}px`;
+      console.log('🎨 RichText overlay font size AND height updated immediately:', { fontSize, height: newHeight });
+      
+      // Force layout recalculation
+      overlayElementRef.current.getBoundingClientRect();
     }
     
     // Also apply through normal style system
@@ -294,6 +376,7 @@ export function RichTextManagerV2({ excalidrawAPI, isMounted }: RichTextManagerV
         onContentChange={handleContentChange}
         onSelectionChange={handleSelectionChange}
         onRef={handleOverlayRef}
+        forceUpdateTrigger={forceUpdateTrigger}
       />
 
       {/* Floating Toolbar - shown when text is selected or editing */}
@@ -306,12 +389,12 @@ export function RichTextManagerV2({ excalidrawAPI, isMounted }: RichTextManagerV
             direction: 'forward'
           } : null}
           currentMarks={{
-            fontSize: editingState.currentStyles.fontSize || 16,
-            color: editingState.currentStyles.color || '#000000',
-            fontFamily: editingState.currentStyles.fontFamily || 'Arial',
-            bold: editingState.currentStyles.fontWeight === 'bold',
-            italic: editingState.currentStyles.fontStyle === 'italic',
-            underline: editingState.currentStyles.textDecoration === 'underline'
+            fontSize: editingState.currentStyles?.fontSize ?? 16,
+            color: editingState.currentStyles?.color ?? '#000000',
+            fontFamily: editingState.currentStyles?.fontFamily ?? 'Arial',
+            bold: (editingState.currentStyles?.fontWeight === 'bold') || false,
+            italic: (editingState.currentStyles?.fontStyle === 'italic') || false,
+            underline: (editingState.currentStyles?.textDecoration === 'underline') || false
           }}
           position={{ x: 100, y: 50 }} // TODO: Calculate proper position
           visible={editingState.showToolbar}

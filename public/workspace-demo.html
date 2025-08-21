@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Workspace Demo</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              primary: '#EC5D3A',
+              'primary-600': '#EB5733',
+              'primary-300': '#F3947D',
+            },
+            neutral: {
+              50: '#F9FAFB',
+              200: '#DBDBDB', 
+              700: '#6B7280',
+            },
+            text: {
+              main: '#111827',
+            },
+            support: {
+              navy: '#1B2A49',
+              teal: '#3AAFA9',
+              yellow: '#FFD166',
+            },
+            background: '#F9FAFB',
+            foreground: '#111827',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { 
+      font-family: 'Inter', sans-serif !important; 
+      font-feature-settings: "rlig" 1, "calt" 1;
+    }
+    .canvas-container {
+      position: relative;
+      background: #ffffff;
+      border-radius: 2rem;
+      box-shadow: 0 4px 16px 0px rgba(27,42,73,0.08);
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-background text-foreground">
+  <!-- Test Banner -->
+  <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
+    <p class="font-bold">🧪 Static Demo Version</p>
+    <p class="text-sm">This version uses direct Tailwind CDN to show your brand colors working</p>
+  </div>
+
+  <!-- Header -->
+  <header class="flex items-center justify-between px-4 sm:px-8 py-4 mb-4 shadow-sm border-b border-neutral-200 bg-white">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-full bg-support-yellow flex items-center justify-center text-lg font-bold text-support-navy">
+        ●
+      </div>
+      <div>
+        <h1 class="text-xl font-semibold text-text-main">My Work Space</h1>
+        <span class="text-sm text-neutral-700">Student View</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 sm:gap-6">
+      <span class="text-sm flex items-center gap-1 text-support-teal">
+        <svg width="10" height="10" fill="currentColor">
+          <circle cx="5" cy="5" r="5" />
+        </svg>
+        <span class="hidden sm:inline">Saved</span>
+        <span class="sm:hidden">✓</span>
+      </span>
+      <button class="p-2 rounded-md hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-brand-primary transition-colors">
+        Help
+      </button>
+      <button class="p-2 rounded-md hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-brand-primary transition-colors">
+        Account
+      </button>
+      <button class="p-2 rounded-md hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-brand-primary transition-colors">
+        Menu
+      </button>
+    </div>
+  </header>
+
+  <!-- Toolbar -->
+  <div class="px-4 sm:px-8 mb-4">
+    <nav class="flex flex-wrap items-center gap-2 sm:gap-3 px-2 sm:px-4 py-3 bg-white border border-neutral-200 rounded-xl shadow-sm">
+      <!-- Tool Buttons -->
+      <div class="flex gap-1 sm:gap-2">
+        <button class="flex flex-col items-center px-2 sm:px-3 py-2 text-xs rounded-md bg-brand-primary text-white shadow-sm">
+          <span class="w-4 h-4 mb-1">🎯</span>
+          <span>Select</span>
+        </button>
+        <button class="flex flex-col items-center px-2 sm:px-3 py-2 text-xs rounded-md text-brand-primary hover:bg-neutral-50">
+          <span class="w-4 h-4 mb-1">✏️</span>
+          <span>Draw</span>
+        </button>
+        <button class="flex flex-col items-center px-2 sm:px-3 py-2 text-xs rounded-md text-support-teal hover:bg-neutral-50">
+          <span class="w-4 h-4 mb-1">📝</span>
+          <span>Text</span>
+        </button>
+        <button class="flex flex-col items-center px-2 sm:px-3 py-2 text-xs rounded-md text-neutral-700 hover:bg-neutral-50">
+          <span class="w-4 h-4 mb-1">🧽</span>
+          <span>Erase</span>
+        </button>
+        <button class="flex flex-col items-center px-2 sm:px-3 py-2 text-xs rounded-md text-support-yellow hover:bg-neutral-50">
+          <span class="w-4 h-4 mb-1">🖍️</span>
+          <span>Mark</span>
+        </button>
+      </div>
+
+      <!-- Divider -->
+      <div class="w-px h-8 bg-neutral-200 mx-1 hidden sm:block"></div>
+
+      <!-- Color & Width Controls -->
+      <div class="flex items-center gap-2">
+        <label class="flex items-center gap-1 text-sm text-text-main">
+          <span class="w-6 h-6 rounded bg-black border border-neutral-200"></span>
+          <span class="hidden sm:inline">Pen</span>
+        </label>
+        <label class="flex items-center gap-1 text-sm text-text-main">
+          <span class="hidden sm:inline">Size:</span>
+          <input type="range" min="1" max="10" value="2" class="w-16 sm:w-20 accent-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary">
+        </label>
+      </div>
+
+      <!-- Divider -->
+      <div class="w-px h-8 bg-neutral-200 mx-1 hidden sm:block"></div>
+
+      <!-- Action Controls -->
+      <div class="flex items-center gap-1 sm:gap-2">
+        <button class="p-2 rounded-md hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-brand-primary transition-colors">
+          ↶
+        </button>
+        <button class="p-2 rounded-md hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-brand-primary transition-colors">
+          ↷
+        </button>
+        <button class="p-2 rounded-md hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-brand-primary transition-colors">
+          🔍-
+        </button>
+        <span class="text-sm font-medium text-text-main min-w-[3rem] text-center">100%</span>
+        <button class="p-2 rounded-md hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-brand-primary transition-colors">
+          🔍+
+        </button>
+        <span class="text-sm font-medium text-text-main min-w-[3rem] text-center">1 / 1</span>
+        <button class="p-2 rounded-md hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-brand-primary transition-colors disabled:opacity-50" disabled>
+          ◀
+        </button>
+        <button class="p-2 rounded-md hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-brand-primary transition-colors disabled:opacity-50" disabled>
+          ▶
+        </button>
+        <button class="flex items-center gap-2 px-2 sm:px-3 py-2 rounded-md bg-support-yellow text-support-navy hover:bg-support-yellow/90 focus:outline-none focus:ring-2 focus:ring-brand-primary transition-colors">
+          🗑️
+          <span class="hidden sm:inline">Clear</span>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="flex-1 px-4 sm:px-8 pb-8">
+    <div class="flex flex-col lg:flex-row gap-4 lg:gap-6">
+      <!-- Page List - Left Sidebar -->
+      <div class="w-full lg:w-64 shrink-0">
+        <div class="w-full bg-white border border-neutral-200 rounded-lg p-4">
+          <h2 class="text-sm font-medium text-text-main mb-3">Pages</h2>
+          <div class="space-y-2">
+            <button class="w-full h-20 border rounded-md flex items-center justify-center text-xs bg-brand-primary text-white border-brand-primary">
+              Page 1
+            </button>
+          </div>
+          <button class="w-full mt-3 px-3 py-2 text-sm bg-brand-primary text-white rounded-md hover:bg-brand-primary-600 focus:outline-none focus:ring-2 focus:ring-brand-primary transition-colors flex items-center justify-center gap-2">
+            + Add page
+          </button>
+        </div>
+      </div>
+
+      <!-- Center: Canvas and Instructions -->
+      <div class="flex-1 flex flex-col xl:flex-row gap-4 xl:gap-6 min-w-0">
+        <!-- Canvas Area -->
+        <div class="flex-1 min-w-0">
+          <section class="w-full min-h-[500px] bg-white rounded-2xl shadow-lg border border-neutral-200 flex flex-col overflow-hidden canvas-container">
+            <!-- Canvas Header -->
+            <div class="px-4 py-3 border-b border-neutral-200 bg-neutral-50 rounded-t-2xl">
+              <h2 class="text-sm font-medium text-text-main">My Canvas</h2>
+            </div>
+            
+            <!-- Canvas Content Area -->
+            <div class="flex-1 relative min-h-[400px]">
+              <!-- Placeholder content -->
+              <div class="absolute inset-0 flex items-center justify-center text-neutral-500 z-10 pointer-events-none">
+                <div class="text-center">
+                  <div class="text-4xl mb-4">✏️</div>
+                  <p class="text-lg font-medium text-text-main mb-2">Start drawing here</p>
+                  <p class="text-sm text-neutral-700">Pick a tool from above and start creating</p>
+                </div>
+              </div>
+              
+              <!-- Konva stage container -->
+              <div id="konva-stage" class="absolute inset-0 w-full h-full bg-white" style="width: 100%; height: 100%; min-height: 400px;"></div>
+            </div>
+            
+            <!-- Turn in button -->
+            <div class="px-4 py-3 border-t border-neutral-200 bg-neutral-50 rounded-b-2xl">
+              <button class="px-4 py-2 bg-support-teal text-white rounded-md hover:bg-support-teal/90 focus:outline-none focus:ring-2 focus:ring-brand-primary transition-colors font-medium">
+                Turn in
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <!-- Instructions Panel - Right Side -->
+        <div class="w-full xl:w-80 shrink-0">
+          <div class="w-full bg-white border border-neutral-200 rounded-lg p-4">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="w-5 h-5 text-brand-primary">📖</span>
+              <h2 class="text-sm font-medium text-text-main">What to do</h2>
+            </div>
+            
+            <div class="space-y-3">
+              <p class="text-sm text-neutral-700">
+                Write about your favorite activity. Use complete sentences and describe why you enjoy it.
+              </p>
+              
+              <button class="flex items-center gap-2 px-3 py-2 text-sm bg-support-teal text-white rounded-md hover:bg-support-teal/90 focus:outline-none focus:ring-2 focus:ring-brand-primary transition-colors">
+                <span class="w-4 h-4">🔊</span>
+                Listen
+              </button>
+              
+              <div class="pt-3 border-t border-neutral-200">
+                <h3 class="text-xs font-medium text-text-main mb-2">Tips</h3>
+                <ul class="text-xs text-neutral-700 space-y-1">
+                  <li>• Start with a topic sentence</li>
+                  <li>• Add details and examples</li>
+                  <li>• Check your spelling</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

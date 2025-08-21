@@ -57,10 +57,10 @@ export function TextStyleControls({
             type="range"
             min="12"
             max="48"
-            value={fontSize}
+            value={fontSize || 20}
             onChange={(e) => onFontSizeChange(parseInt(e.target.value))}
-            onMouseDown={(e) => e.preventDefault()}
             className="w-16 accent-primary"
+            title={`Font size: ${fontSize}px`}
           />
           <button
             onMouseDown={(e) => e.preventDefault()}

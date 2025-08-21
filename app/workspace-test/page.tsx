@@ -1,12 +1,8 @@
-import { WorkspaceLayout } from '@/components/workspace/WorkspaceLayout'
-import StudentWorkspace from '@/components/workspace/StudentWorkspace'
+'use client'
+
+import React from 'react'
+import { StudentWorkspacePage } from '../../src/pages/student/StudentWorkspacePage'
 
 export default function WorkspaceTestPage() {
-  return (
-    <WorkspaceLayout>
-      <div className="h-[calc(100vh-200px)]">
-        <StudentWorkspace />
-      </div>
-    </WorkspaceLayout>
-  )
+  return <StudentWorkspacePage />
 }

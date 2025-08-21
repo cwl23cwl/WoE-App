@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Workspace – Modern Wireframe</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:400,500,600,700&display=swap">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="student_workspace_theme.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif !important; }
+  </style>
+</head>
+<body class="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
+  <!-- Header -->
+  <header class="header flex items-center justify-between px-8 py-4 mb-4 shadow-sm border-b border-[var(--border)] bg-[var(--card)]">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-full bg-[var(--accent)] flex items-center justify-center text-lg font-bold text-[var(--sidebar-accent-foreground)]">●</div>
+      <div>
+        <h1 class="text-xl font-semibold">Assignment Workspace</h1>
+        <span class="text-sm text-[var(--muted-foreground)]">Student View</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-6">
+      <span class="text-sm flex items-center gap-1 text-[var(--accent)]"><svg width="10" height="10" fill="currentColor"><circle cx="5" cy="5" r="5"/></svg> Saved</span>
+      <button class="btn" title="Help"><i data-lucide="help-circle"></i></button>
+      <button class="btn" title="Account"><i data-lucide="user"></i></button>
+      <button class="btn" title="Menu"><i data-lucide="more-vertical"></i></button>
+    </div>
+  </header>
+
+  <!-- Toolbar -->
+  <nav class="toolbar flex flex-wrap items-center gap-3 px-8 py-3 mb-4 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-xs">
+    <!-- Tool Buttons -->
+    <div class="flex gap-2">
+      <button class="btn flex flex-col items-center px-3 py-2 text-xs text-[var(--foreground)] hover:bg-[var(--muted)] active" title="Select"><i data-lucide="mouse-pointer"></i><span>Select</span></button>
+      <button class="btn flex flex-col items-center px-3 py-2 text-xs text-[var(--primary)] hover:bg-[var(--muted)]" title="Pencil"><i data-lucide="pencil"></i><span>Pencil</span></button>
+      <button class="btn flex flex-col items-center px-3 py-2 text-xs text-[var(--secondary)] hover:bg-[var(--muted)]" title="Text"><i data-lucide="type"></i><span>Text</span></button>
+      <button class="btn flex flex-col items-center px-3 py-2 text-xs text-[var(--muted-foreground)] hover:bg-[var(--muted)]" title="Eraser"><i data-lucide="eraser"></i><span>Eraser</span></button>
+      <button class="btn flex flex-col items-center px-3 py-2 text-xs text-[var(--accent)] hover:bg-[var(--muted)]" title="Highlighter"><i data-lucide="highlighter"></i><span>Highlighter</span></button>
+    </div>
+    <!-- Divider -->
+    <div class="w-px h-8 bg-[var(--border)] mx-2"></div>
+    <!-- Color & Width -->
+    <div class="flex items-center gap-2">
+      <label class="flex items-center gap-1 text-sm"><span class="w-6 h-6 rounded bg-black border border-[var(--border)]"></span>Pen</label>
+      <label class="flex items-center gap-1 text-sm">Width: <input type="range" min="1" max="10" value="2" class="w-20 accent-[var(--primary)]"></label>
+    </div>
+    <!-- Divider -->
+    <div class="w-px h-8 bg-[var(--border)] mx-2"></div>
+    <!-- Actions -->
+    <div class="flex items-center gap-2">
+      <button class="btn" title="Undo"><i data-lucide="rotate-ccw"></i></button>
+      <button class="btn" title="Redo"><i data-lucide="rotate-cw"></i></button>
+      <button class="btn" title="Zoom Out"><i data-lucide="zoom-out"></i></button>
+      <span class="text-sm font-medium">100%</span>
+      <button class="btn" title="Zoom In"><i data-lucide="zoom-in"></i></button>
+      <span class="text-sm font-medium">1 / 1</span>
+      <button class="btn" title="Prev Page"><i data-lucide="chevron-left"></i></button>
+      <button class="btn" title="Next Page"><i data-lucide="chevron-right"></i></button>
+      <button class="btn accent" title="Clear"><i data-lucide="trash-2"></i> <span class="ml-1 hidden sm:inline">Clear</span></button>
+    </div>
+  </nav>
+
+  <!-- Canvas Area -->
+  <main class="flex-1 flex justify-center items-start px-8 pb-8">
+    <section class="w-full max-w-5xl min-h-[60vh] bg-white rounded-2xl shadow border border-[var(--border)] flex flex-col overflow-hidden">
+      <div class="flex-1 flex items-center justify-center text-[var(--muted-foreground)] text-lg">
+        [ Canvas Area ]
+      </div>
+    </section>
+  </main>
+
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>

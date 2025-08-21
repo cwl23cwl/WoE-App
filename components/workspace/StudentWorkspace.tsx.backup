@@ -21,8 +21,41 @@ interface PageData {
 }
 
 const Excalidraw = dynamic(
-  () => import('@excalidraw/excalidraw').then((mod) => ({ default: mod.Excalidraw })),
-  { ssr: false }
+  () => import('@excalidraw/excalidraw').then((mod) => ({ default: mod.Excalidraw })).catch((error) => {
+    console.error('Failed to load Excalidraw:', error);
+    // Return a fallback component
+    return {
+      default: () => (
+        <div className="flex items-center justify-center h-full w-full bg-background border-2 border-dashed border-border">
+          <div className="text-center p-8">
+            <div className="text-4xl mb-4">⚠️</div>
+            <h3 className="text-lg font-semibold mb-2">Canvas Loading Failed</h3>
+            <p className="text-muted-foreground mb-4">
+              The drawing canvas failed to load. This might be due to a slow connection.
+            </p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      )
+    };
+  }),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-full w-full bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading canvas...</p>
+          <p className="text-xs text-muted-foreground mt-2">This may take a moment...</p>
+        </div>
+      </div>
+    )
+  }
 );
 
 interface StudentWorkspaceProps {
@@ -601,8 +634,8 @@ export default function StudentWorkspace({ submissionId = 'demo-submission' }: S
       } catch (error) {
         console.error('Failed to set default tool:', error);
       }
-    }, 200);
-  }, [excalidrawAPI, isMounted]);
+    }, 200); // Slightly longer delay
+  }, [excalidrawAPI, isMounted]); // Removed handleToolChange from dependencies
 
   // Handle Tab key for text indentation with caret positioning
   useEffect(() => {
@@ -1068,12 +1101,16 @@ export default function StudentWorkspace({ submissionId = 'demo-submission' }: S
             :global(.excalidraw canvas) {
               pointer-events: auto !important;
             }
-            /* Hide welcome screen */
+            /* Simpler approach - just hide UI and ensure canvas works */
             :global(.excalidraw .welcome-screen) {
               display: none !important;
             }
             :global(.excalidraw .welcome-screen-center) {
               display: none !important;
+            }
+            /* Make sure canvas gets pointer events */
+            :global(.excalidraw canvas) {
+              pointer-events: auto !important;
             }
           `}</style>
           <div style={{ height: '100%', width: '100%' }}>

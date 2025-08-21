@@ -1,0 +1,33 @@
+/* Student Workspace Theme - Minimal CSS Variables */
+/* This file adds only essential CSS variables that complement our Tailwind config */
+
+:root {
+  /* Additional shadow variations for the workspace */
+  --workspace-shadow-xs: 0 1px 2px 0px rgba(27,42,73,0.03);
+  --workspace-shadow-sm: 0 2px 8px 0px rgba(27,42,73,0.06);
+  --workspace-shadow: 0 4px 16px 0px rgba(27,42,73,0.08);
+  
+  /* Workspace-specific radius values */
+  --workspace-radius-sm: 0.5rem;
+  --workspace-radius-md: 0.75rem;
+  --workspace-radius-lg: 1.25rem;
+  --workspace-radius-xl: 2rem;
+}
+
+/* Canvas-specific styling that doesn't conflict with Tailwind */
+.canvas-container {
+  position: relative;
+  background: #ffffff;
+  border-radius: var(--workspace-radius-xl);
+  box-shadow: var(--workspace-shadow);
+}
+
+/* Active tool state for consistency */
+.tool-active {
+  box-shadow: 0 0 0 2px theme('colors.brand.primary');
+}
+
+/* Ensure proper font rendering for Inter */
+.font-inter {
+  font-feature-settings: "rlig" 1, "calt" 1;
+}

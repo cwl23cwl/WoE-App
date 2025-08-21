@@ -30,9 +30,10 @@ interface ColorPopoverProps {
   onColorSelect: (color: string) => void;
   label?: string;
   buttonSize?: 'default' | 'sm';
+  isMixed?: boolean;
 }
 
-export function ColorPopover({ currentColor, onColorSelect, label = 'Color', buttonSize = 'default' }: ColorPopoverProps) {
+export function ColorPopover({ currentColor, onColorSelect, label = 'Color', buttonSize = 'default', isMixed = false }: ColorPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);

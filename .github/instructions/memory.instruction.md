@@ -42,12 +42,59 @@ applyTo: '**'
 - Kept essential props: `excalidrawAPI`, `onChange`, `viewModeEnabled={false}`, `theme="light"`
 - **Result**: All tools now fully functional - drawing, text, eraser, selection all work perfectly
 
-### Current Status: ✅ FULLY FUNCTIONAL
+### Current Status: ✅ FUNCTIONAL - DEBUGGING TEXT HEIGHT ISSUE
 - **Drawing Tool**: Working - can draw with pen/pencil
 - **Text Tool**: Working - creates text boxes on click
 - **Selection Tool**: Working - can select and manipulate elements  
 - **Eraser Tool**: Working - removes elements
 - **Highlighter Tool**: Working - draws with opacity
+
+## Current Bug Fix Task: Text Box Resize Behavior - CORRECTED & IMPLEMENTED ✅
+- **Issue**: When adjusting text box dimensions, wanted different behavior for edge vs corner dragging
+- **Requirement Clarification**: 
+  - **Horizontal edge drag** → height change only (width constrained to original)
+  - **Vertical edge drag** → width change only (height constrained to original)
+  - **Corner drag** → both dimensions can change freely
+- **Solution**: Fixed resize constraint logic in StudentWorkspace.handleChange() with proper directional constraints
+- **Implementation**: Detects drag type and applies appropriate dimensional constraints via setTimeout scene updates
+- **Status**: CORRECTED - Horizontal/vertical edge drags now properly constrain the non-dragged dimension
+
+### Fix Details:
+- **Detection**: Compares element dimensions before/after changes to identify resize operations
+- **Height-only constraint**: When only height changes, preserves original width
+- **Width-only constraint**: When only width changes, preserves original height  
+- **Corner resize**: When both dimensions change, allows proportional resizing (default behavior)
+- **Performance**: Uses setTimeout(0) to avoid interference with Excalidraw's internal state
+
+### Critical Fix Details:
+- **Root Problem**: Overlay was using `editingState.element.fontSize` (cached) for height calculation
+- **Solution**: Modified overlay to fetch current element data directly from Excalidraw scene elements
+- **Live Updates**: `currentElement = liveElement` ensures overlay always uses latest font size
+- **Real-time Height**: `minHeight: Math.max(size.height, currentElement.fontSize * 1.4)` uses live fontSize
+- **Debug Logging**: Added console logs to track font size changes in overlay
+
+### Implementation Changes:
+1. **RichTextOverlay.tsx**: Added live element data retrieval in overlay render
+2. **Live Data**: `excalidrawAPI.getSceneElements().find()` to get current element state  
+3. **Height Calculation**: Uses `currentElement.fontSize` instead of cached `element.fontSize`
+4. **Font Properties**: All font properties (size, weight, style, color) use live data
+5. **Debug Logs**: Console logs show when overlay detects font size changes
+
+### Testing Instructions - CRITICAL:
+1. Go to http://localhost:3000/workspace-test 
+2. Select text tool and create a text box
+3. While editing text, use the **+ and - buttons** to change font size
+4. **Watch console** for "🔄 Overlay detected font size change" logs
+5. **Text box height should now adjust immediately** as font size changes
+6. Try **slider** - should also trigger immediate height adjustment
+7. Try **preset buttons** (14, 18, 24, 32) - should work immediately
+
+### Expected Console Output:
+```
+🔄 Overlay detected font size change: {oldFontSize: 20, newFontSize: 22, elementId: "..."}
+```
+
+This fix addresses the core issue: the overlay now gets live element data on every render instead of using stale cached data.
 - **Color Swatches**: Working - changes colors for new and selected elements
 - **Auto-save**: Working - debounced saves with visual feedback
 - **Tool Switching**: Working - toolbar buttons properly switch canvas tools

@@ -68,6 +68,7 @@ export interface WorkspaceState {
   // Canvas state
   canUndo: boolean
   canRedo: boolean
+  excalidrawAPI: any // Reference to Excalidraw API
   
   // Selection and text editing state
   selectedElementIds: string[]
@@ -110,6 +111,12 @@ export interface WorkspaceActions {
   // Canvas history actions
   setCanUndo: (canUndo: boolean) => void
   setCanRedo: (canRedo: boolean) => void
+  setExcalidrawAPI: (api: any) => void
+  
+  // Canvas operations (requires Excalidraw API)
+  undo: () => void
+  redo: () => void
+  clearCanvas: () => void
   
   // Selection and text editing actions
   setSelectedElementIds: (ids: string[]) => void
@@ -179,6 +186,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         recentColors: [],
         canUndo: false,
         canRedo: false,
+        excalidrawAPI: null,
         selectedElementIds: [],
         editingTextId: null,
         textDefaults: DEFAULT_TEXT_DEFAULTS,
@@ -315,6 +323,110 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         // Canvas history actions
         setCanUndo: (canUndo) => set({ canUndo }, false, 'setCanUndo'),
         setCanRedo: (canRedo) => set({ canRedo }, false, 'setCanRedo'),
+        setExcalidrawAPI: (excalidrawAPI) => set({ excalidrawAPI }, false, 'setExcalidrawAPI'),
+        
+        // Canvas operations
+        undo: () => {
+          const { excalidrawAPI } = get()
+          if (!excalidrawAPI) {
+            console.warn('Undo failed: Excalidraw API not available')
+            return
+          }
+          
+          try {
+            if (excalidrawAPI.history?.undo) {
+              excalidrawAPI.history.undo()
+              console.log('✅ Undo performed')
+            } else {
+              console.warn('Undo not available - no history API')
+            }
+          } catch (error) {
+            console.error('❌ Error performing undo:', error)
+            // Fallback: try direct undo if available
+            try {
+              if (excalidrawAPI.undo) {
+                excalidrawAPI.undo()
+              }
+            } catch (fallbackError) {
+              console.error('❌ Fallback undo also failed:', fallbackError)
+            }
+          }
+        },
+        
+        redo: () => {
+          const { excalidrawAPI } = get()
+          if (!excalidrawAPI) {
+            console.warn('Redo failed: Excalidraw API not available')
+            return
+          }
+          
+          try {
+            if (excalidrawAPI.history?.redo) {
+              excalidrawAPI.history.redo()
+              console.log('✅ Redo performed')
+            } else {
+              console.warn('Redo not available - no history API')
+            }
+          } catch (error) {
+            console.error('❌ Error performing redo:', error)
+            // Fallback: try direct redo if available
+            try {
+              if (excalidrawAPI.redo) {
+                excalidrawAPI.redo()
+              }
+            } catch (fallbackError) {
+              console.error('❌ Fallback redo also failed:', fallbackError)
+            }
+          }
+        },
+        
+        clearCanvas: () => {
+          const { excalidrawAPI, pages, currentPageIndex } = get()
+          
+          if (!excalidrawAPI) {
+            console.warn('Clear canvas failed: Excalidraw API not available')
+            return
+          }
+          
+          if (!pages[currentPageIndex]) {
+            console.warn('Clear canvas failed: No current page')
+            return
+          }
+          
+          try {
+            // Confirm with user (optional - you can remove this if you want instant clear)
+            const shouldClear = confirm('Are you sure you want to clear the entire canvas? This action cannot be undone.')
+            if (!shouldClear) {
+              return
+            }
+            
+            excalidrawAPI.updateScene({ 
+              elements: [],
+              commitToHistory: true
+            })
+            
+            // Update the page data
+            const updatedPages = [...pages]
+            if (updatedPages[currentPageIndex]) {
+              updatedPages[currentPageIndex] = {
+                ...updatedPages[currentPageIndex],
+                scene: {
+                  elements: [],
+                  appState: {
+                    viewBackgroundColor: '#ffffff',
+                  },
+                }
+              }
+              set({ pages: updatedPages, isDirty: true }, false, 'clearCanvas')
+            }
+            
+            console.log('✅ Canvas cleared successfully')
+          } catch (error) {
+            console.error('❌ Error clearing canvas:', error)
+            // Show user-friendly error message
+            alert('Failed to clear canvas. Please try again or refresh the page.')
+          }
+        },
         
         // Selection and text editing actions
         setSelectedElementIds: (selectedElementIds) => set({ selectedElementIds }, false, 'setSelectedElementIds'),
@@ -328,7 +440,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         },
         
         applyTextStyleToSelection: (patch, excalidrawAPI) => {
-          const { selectedElementIds, textDefaults } = get()
+          const { selectedElementIds, editingTextId, textDefaults } = get()
           
           if (!excalidrawAPI) {
             // No API available, just update defaults
@@ -343,16 +455,32 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               selectedElementIds.includes(el.id) && el.type === 'text'
             )
             
+            // If no elements selected but we're editing a text element, target that element
+            let targetElements = selectedTextElements
+            let isEditingTarget = false
+            
+            if (selectedTextElements.length === 0 && editingTextId) {
+              const editingElement = elements.find((el: any) => el.id === editingTextId && el.type === 'text')
+              if (editingElement) {
+                targetElements = [editingElement]
+                isEditingTarget = true
+              }
+            }
+            
             console.log('🎨 Applying text style:', {
               patch,
               selectedTextCount: selectedTextElements.length,
+              editingTextId,
+              targetElementsCount: targetElements.length,
+              isEditingTarget,
               selectedIds: selectedElementIds
             })
             
-            if (selectedTextElements.length > 0) {
-              // Apply to selected text elements
+            if (targetElements.length > 0) {
+              // Apply to target text elements (selected or editing)
+              const targetElementIds = targetElements.map((el: any) => el.id)
               const updatedElements = elements.map((el: any) => {
-                if (selectedElementIds.includes(el.id) && el.type === 'text') {
+                if (targetElementIds.includes(el.id) && el.type === 'text') {
                   const updatedElement = { ...el }
                   
                   // Map patch properties to Excalidraw element properties
@@ -360,7 +488,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
                   if (patch.color !== undefined) updatedElement.strokeColor = patch.color
                   if (patch.fontFamily !== undefined) updatedElement.fontFamily = patch.fontFamily
                   if (patch.bold !== undefined) {
-                    // Handle bold via fontFamily mapping (Excalidraw uses numeric family codes)
                     updatedElement.fontWeight = patch.bold ? 'bold' : 'normal'
                   }
                   if (patch.italic !== undefined) {
@@ -368,9 +495,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
                   }
                   if (patch.align !== undefined) updatedElement.textAlign = patch.align
                   
-                  // Force layout recalculation
-                  updatedElement.width = null
-                  updatedElement.height = null
+                  // Let Excalidraw handle the layout recalculation naturally.
+                  // Forcing it by nulling width/height is unstable.
                   
                   return updatedElement
                 }
@@ -379,13 +505,22 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               
               excalidrawAPI.updateScene({ 
                 elements: updatedElements,
-                commitToHistory: true
+                commitToHistory: !isEditingTarget // Don't add to history during editing
               })
               
-              // Force redraw
-              setTimeout(() => excalidrawAPI.refresh(), 10)
-              
-              console.log(`✅ Applied style to ${selectedTextElements.length} text elements`)
+              // After updating the scene, give Excalidraw a moment to process
+              // the changes before we might need to read the updated element state.
+              setTimeout(() => {
+                if (excalidrawAPI && excalidrawAPI.refresh) {
+                  excalidrawAPI.refresh();
+                }
+              }, 50);
+
+              if (isEditingTarget) {
+                console.log(`✅ Applied style to editing text element: ${editingTextId}`)
+              } else {
+                console.log(`✅ Applied style to ${targetElements.length} selected text elements`)
+              }
             } else {
               // No text elements selected, update defaults
               const newDefaults = { ...textDefaults, ...patch }
@@ -480,11 +615,11 @@ export const useTextSelection = () => {
 }
 
 export const useDerivedTextStyle = (excalidrawAPI?: any) => {
-  const { selectedElementIds, textDefaults } = useWorkspaceStore()
+  const { selectedElementIds, editingTextId, textDefaults } = useWorkspaceStore()
   
   if (!excalidrawAPI) {
     return {
-      derivedStyle: textDefaults,
+      derivedStyle: textDefaults || DEFAULT_TEXT_DEFAULTS,
       isMixed: false,
       hasSelection: false
     }
@@ -496,28 +631,40 @@ export const useDerivedTextStyle = (excalidrawAPI?: any) => {
       selectedElementIds.includes(el.id) && el.type === 'text'
     )
     
-    if (selectedTextElements.length === 0) {
-      // No text selected, return defaults
+    // If no elements selected but we're editing a text element, use that for display
+    let targetElements = selectedTextElements
+    let isEditingTarget = false
+    
+    if (selectedTextElements.length === 0 && editingTextId) {
+      const editingElement = elements.find((el: any) => el.id === editingTextId && el.type === 'text')
+      if (editingElement) {
+        targetElements = [editingElement]
+        isEditingTarget = true
+      }
+    }
+    
+    if (targetElements.length === 0) {
+      // No text selected or editing, return defaults
       return {
-        derivedStyle: textDefaults,
+        derivedStyle: textDefaults || DEFAULT_TEXT_DEFAULTS,
         isMixed: false,
         hasSelection: false
       }
     }
     
-    if (selectedTextElements.length === 1) {
-      // Single selection, return its properties
-      const element = selectedTextElements[0]
+    if (targetElements.length === 1) {
+      // Single element (selected or editing), return its properties
+      const element = targetElements[0]
       return {
         derivedStyle: {
-          fontFamily: element.fontFamily || textDefaults.fontFamily,
-          fontSize: element.fontSize || textDefaults.fontSize,
-          color: element.strokeColor || textDefaults.color,
+          fontFamily: element.fontFamily || textDefaults?.fontFamily || DEFAULT_TEXT_DEFAULTS.fontFamily,
+          fontSize: element.fontSize || textDefaults?.fontSize || DEFAULT_TEXT_DEFAULTS.fontSize,
+          color: element.strokeColor || textDefaults?.color || DEFAULT_TEXT_DEFAULTS.color,
           bold: element.fontWeight === 'bold',
           italic: element.fontStyle === 'italic',
           underline: false, // Excalidraw doesn't support underline natively
-          lineHeight: textDefaults.lineHeight, // Use default for now
-          align: element.textAlign || textDefaults.align
+          lineHeight: textDefaults?.lineHeight || DEFAULT_TEXT_DEFAULTS.lineHeight,
+          align: element.textAlign || textDefaults?.align || DEFAULT_TEXT_DEFAULTS.align
         },
         isMixed: false,
         hasSelection: true
@@ -525,8 +672,8 @@ export const useDerivedTextStyle = (excalidrawAPI?: any) => {
     }
     
     // Multiple selection, check for mixed values
-    const firstElement = selectedTextElements[0]
-    const isMixed = selectedTextElements.some((el: any) => 
+    const firstElement = targetElements[0]
+    const isMixed = targetElements.some((el: any) => 
       el.fontSize !== firstElement.fontSize ||
       el.strokeColor !== firstElement.strokeColor ||
       el.fontFamily !== firstElement.fontFamily ||
@@ -537,23 +684,23 @@ export const useDerivedTextStyle = (excalidrawAPI?: any) => {
     
     if (isMixed) {
       return {
-        derivedStyle: textDefaults, // Show defaults when mixed
+        derivedStyle: textDefaults || DEFAULT_TEXT_DEFAULTS, // Show defaults when mixed
         isMixed: true,
         hasSelection: true
       }
     }
     
-    // All selected elements have same values
+    // All target elements have same values
     return {
       derivedStyle: {
-        fontFamily: firstElement.fontFamily || textDefaults.fontFamily,
-        fontSize: firstElement.fontSize || textDefaults.fontSize,
-        color: firstElement.strokeColor || textDefaults.color,
+        fontFamily: firstElement.fontFamily || textDefaults?.fontFamily || DEFAULT_TEXT_DEFAULTS.fontFamily,
+        fontSize: firstElement.fontSize || textDefaults?.fontSize || DEFAULT_TEXT_DEFAULTS.fontSize,
+        color: firstElement.strokeColor || textDefaults?.color || DEFAULT_TEXT_DEFAULTS.color,
         bold: firstElement.fontWeight === 'bold',
         italic: firstElement.fontStyle === 'italic',
         underline: false,
-        lineHeight: textDefaults.lineHeight,
-        align: firstElement.textAlign || textDefaults.align
+        lineHeight: textDefaults?.lineHeight || DEFAULT_TEXT_DEFAULTS.lineHeight,
+        align: firstElement.textAlign || textDefaults?.align || DEFAULT_TEXT_DEFAULTS.align
       },
       isMixed: false,
       hasSelection: true
@@ -561,7 +708,7 @@ export const useDerivedTextStyle = (excalidrawAPI?: any) => {
   } catch (error) {
     console.error('Error deriving text style:', error)
     return {
-      derivedStyle: textDefaults,
+      derivedStyle: textDefaults || DEFAULT_TEXT_DEFAULTS,
       isMixed: false,
       hasSelection: false
     }
