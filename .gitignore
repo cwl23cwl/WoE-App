@@ -1,11 +1,48 @@
-# dependencies & builds
+# Node
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+
+# Build outputs
 .next/
+out/
 dist/
 build/
 
-# env & OS noise
+# TypeScript
+*.tsbuildinfo
+
+# Prisma
+prisma/dev.db
+prisma/*.db-journal
+prisma/migrations/*/steps.json
+prisma/migrations/*/migration.sql
+
+# Testing
+coverage/
+jest.config.js
+jest.setup.js
+
+# Local env files
 .env
-.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# OS
 .DS_Store
 Thumbs.db
+
+# Logs
+*.log
+
+# Misc
+nul

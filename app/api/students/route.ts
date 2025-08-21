@@ -8,10 +8,12 @@ import { generateStudentCredentials, generateInviteToken } from '@/lib/utils/gen
 
 const createStudentSchema = z.object({
   name: z.string().min(2),
-  email: z.string().email(),
-  sendInvite: z.boolean().optional(),
-  generateCredentials: z.boolean().optional(),
-  classIds: z.array(z.string()),
+  email: z.string().optional().refine((email) => {
+    if (!email || email.trim() === '') return true;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }, 'Please enter a valid email address'),
+  timezone: z.string().optional(),
+  generateOwnClass: z.boolean().optional(),
   schedules: z.array(z.object({
     dayOfWeek: z.enum(['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']),
     startTime: z.string(),
@@ -148,65 +150,68 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const data = createStudentSchema.parse(body)
 
-    // Check if email already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: data.email }
-    })
-
-    if (existingUser) {
-      return NextResponse.json(
-        { error: 'A user with this email already exists' },
-        { status: 400 }
-      )
-    }
-
-    // Verify all classes exist and belong to teacher
-    if (data.classIds.length > 0) {
-      const existingClasses = await prisma.class.findMany({
-        where: {
-          id: { in: data.classIds },
-          teacherId: session.user.id
-        }
+    // Check if email already exists (only if email is provided)
+    if (data.email && data.email.trim() !== '') {
+      const existingUser = await prisma.user.findUnique({
+        where: { email: data.email }
       })
 
-      if (existingClasses.length !== data.classIds.length) {
+      if (existingUser) {
         return NextResponse.json(
-          { error: 'One or more classes not found or access denied' },
-          { status: 404 }
+          { error: 'A user with this email already exists' },
+          { status: 400 }
         )
       }
     }
 
-    // Generate credentials
+    // Generate credentials for the student
     const credentials = generateStudentCredentials()
     const hashedPassword = await bcrypt.hash(credentials.password, 12)
 
-    // Generate invite token if needed
-    const inviteToken = data.sendInvite ? generateInviteToken() : undefined
-    const inviteExpiry = data.sendInvite ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) : undefined // 7 days
+    // Prepare student data - handle optional email properly
+    const studentData: any = {
+      name: data.name,
+      password: hashedPassword,
+      role: 'STUDENT',
+      status: 'ACTIVE', // Always active in simplified version
+      loginCode: credentials.loginCode
+    }
+
+    // Only set email if it's provided and not empty
+    if (data.email && data.email.trim() !== '') {
+      studentData.email = data.email
+    }
 
     // Create student user
     const student = await prisma.user.create({
-      data: {
-        name: data.name,
-        email: data.email,
-        password: hashedPassword,
-        role: 'STUDENT',
-        status: data.sendInvite ? 'INVITED' : 'ACTIVE',
-        loginCode: credentials.loginCode,
-        inviteToken,
-        inviteExpiry
-      }
+      data: studentData
     })
 
-    // Create class enrollments
-    if (data.classIds.length > 0) {
-      await prisma.enrollment.createMany({
-        data: data.classIds.map(classId => ({
-          studentId: student.id,
-          classId,
+    // Create a dedicated class for this student (1:1 relationship)
+    let studentClass = null
+    if (data.generateOwnClass !== false) { // Default to true
+      // Generate a unique class code
+      const classCode = `${credentials.loginCode}-CLASS`
+      
+      studentClass = await prisma.class.create({
+        data: {
+          name: `${data.name}'s Class`,
+          description: `Personalized class for ${data.name}`,
+          code: classCode,
+          level: 'BEGINNER', // Default level, can be updated later
+          color: '#E55A3C', // Default orange color
+          teacherId: session.user.id,
           isActive: true
-        }))
+        }
+      })
+
+      // Enroll student in their own class
+      await prisma.enrollment.create({
+        data: {
+          studentId: student.id,
+          classId: studentClass.id,
+          isActive: true
+        }
       })
     }
 
@@ -224,12 +229,6 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // TODO: Send email invitation if requested
-    if (data.sendInvite) {
-      // Implement email sending logic here
-      console.log(`Would send invite email to ${data.email} with token ${inviteToken}`)
-    }
-
     // Fetch the created student with relationships
     const createdStudent = await prisma.user.findUnique({
       where: { id: student.id },
@@ -245,11 +244,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       data: createdStudent,
-      credentials: data.generateCredentials ? {
+      credentials: {
         loginCode: credentials.loginCode,
         displayPassword: credentials.displayPassword
-      } : undefined,
-      message: 'Student created successfully'
+      },
+      message: 'Student created successfully with their own dedicated class'
     })
 
   } catch (error) {

@@ -82,8 +82,24 @@ export function RefinedClassCard({
     return <LoadingSkeleton />
   }
 
-  const student = classData.enrollments[0]?.student
-  if (!student) return null
+  // Show class card with all enrolled students rather than just first student
+  const enrolledStudents = classData.enrollments || []
+  if (enrolledStudents.length === 0) {
+    // Show class without student data if no enrollments
+    return (
+      <div className="rounded-2xl border shadow-sm bg-white/70 backdrop-blur p-5 lg:p-6">
+        <div className="text-center py-8 text-muted-foreground">
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-gray-900">{classData.name}</h3>
+            <p className="text-sm">No students enrolled yet</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // For now, use the first student for card header but track all students
+  const primaryStudent = enrolledStudents[0]?.student
 
   const handleSort = (key: SortConfig['key']) => {
     setSortConfig(prev => ({
@@ -113,12 +129,21 @@ export function RefinedClassCard({
     return sortConfig.direction === 'asc' ? '↑' : '↓'
   }
 
-  const getLastAccessed = (assignment: Assignment) => {
-    const submission = assignment.submissions.find(s => s.studentId === student.id)
+  const getLastAccessed = (assignment: Assignment, studentId?: string) => {
+    // Use primaryStudent if no specific studentId provided
+    const targetStudentId = studentId || primaryStudent?.id
+    if (!targetStudentId) return 'Never'
+    
+    const submission = assignment.submissions.find(s => s.studentId === targetStudentId)
     if (!submission) return 'Never'
     
     const lastDate = submission.updatedAt
-    return formatDistanceToNow(new Date(lastDate), { addSuffix: true })
+    if (!lastDate) return 'Never'
+    
+    const date = new Date(lastDate)
+    if (isNaN(date.getTime())) return 'Never'
+    
+    return formatDistanceToNow(date, { addSuffix: true })
   }
 
 
@@ -127,10 +152,10 @@ export function RefinedClassCard({
       {/* Avatar */}
       <div 
         className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white text-lg font-medium cursor-pointer hover:scale-105 transition-transform"
-        onClick={() => onStudentClick?.(student.id)}
-        aria-label={`View ${student.name}'s profile`}
+        onClick={() => onStudentClick?.(primaryStudent.id)}
+        aria-label={`View ${primaryStudent.name}'s profile`}
       >
-        {student.name.charAt(0).toUpperCase()}
+        {primaryStudent.name.charAt(0).toUpperCase()}
       </div>
 
       {/* Student Info */}
@@ -138,13 +163,18 @@ export function RefinedClassCard({
         <div className="flex items-center gap-2">
           <h3 
             className="text-lg font-semibold leading-tight text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors"
-            onClick={() => onStudentClick?.(student.id)}
+            onClick={() => onStudentClick?.(primaryStudent.id)}
           >
-            {student.name}
+            {primaryStudent.name}
           </h3>
+          {enrolledStudents.length > 1 && (
+            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+              +{enrolledStudents.length - 1} more
+            </span>
+          )}
         </div>
         <p className="text-sm text-muted-foreground leading-tight truncate">
-          {student.email}
+          {primaryStudent.email}
         </p>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
@@ -330,7 +360,7 @@ export function RefinedClassCard({
             <>
               <div className="space-y-2">
                 {displayedAssignments.map((assignment) => {
-                  const submission = assignment.submissions.find(s => s.studentId === student.id)
+                  const submission = assignment.submissions.find(s => s.studentId === primaryStudent?.id)
                   
                   return (
                     <div key={assignment.id} className="rounded-xl border p-4 sm:p-5 flex flex-col gap-2 bg-white hover:shadow-sm transition-shadow">
@@ -375,7 +405,7 @@ export function RefinedClassCard({
                               <svg width="16" height="16" className="w-3 h-3" aria-hidden="true">
                                 <path d="M12 1v6M6 1v6M4 7h16M4 7v11a2 2 0 002 2h12a2 2 0 002-2V7" stroke="currentColor" fill="none"/>
                               </svg>
-                              Last: {getLastAccessed(assignment)}
+                              Last: {getLastAccessed(assignment, primaryStudent?.id)}
                             </span>
                           </div>
                           

@@ -1,15 +1,66 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { X, Plus, Trash2, Calendar, Clock, Mail, UserPlus, Download } from 'lucide-react'
+import { X, Plus, Trash2, Calendar, Clock, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { StudentCreationForm, ScheduleInput, Class, LoadingState, NotificationState } from '@/lib/types'
-import { generateStudentCredentials, hasScheduleConflict, isValidEmail, isValidTimeFormat } from '@/lib/utils/generators'
+import { hasScheduleConflict, isValidTimeFormat } from '@/lib/utils/generators'
+
+// Schedule localStorage utilities
+const LAST_SCHEDULE_KEY = 'woe-last-schedule-slot'
+
+type DayOfWeek = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY'
+
+interface LastScheduleSlot {
+  dayOfWeek: DayOfWeek
+  startTime: string
+  endTime: string
+  title?: string
+  notes?: string
+}
+
+function getLastScheduleSlot(): LastScheduleSlot | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const stored = localStorage.getItem(LAST_SCHEDULE_KEY)
+    return stored ? JSON.parse(stored) : null
+  } catch {
+    return null
+  }
+}
+
+function saveLastScheduleSlot(slot: LastScheduleSlot) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(LAST_SCHEDULE_KEY, JSON.stringify(slot))
+  } catch {
+    // Ignore localStorage errors
+  }
+}
+
+function getDefaultScheduleSlot(): LastScheduleSlot {
+  const lastSlot = getLastScheduleSlot()
+  if (lastSlot) return lastSlot
+
+  // Default to today's weekday and 21:00 (9 PM)
+  const today = new Date()
+  const dayNames: LastScheduleSlot['dayOfWeek'][] = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+  
+  return {
+    dayOfWeek: dayNames[today.getDay()],
+    startTime: '21:00',
+    endTime: '22:00'
+  }
+}
+
+function getTeacherTimezone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone
+}
 
 const DAYS_OF_WEEK = [
   { value: 'MONDAY', label: 'Monday', short: 'Mon' },
@@ -23,10 +74,11 @@ const DAYS_OF_WEEK = [
 
 const studentSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Please enter a valid email address'),
-  sendInvite: z.boolean(),
-  generateCredentials: z.boolean(),
-  classIds: z.array(z.string()).min(1, 'Please select at least one class'),
+  email: z.string().optional().refine((email) => {
+    if (!email || email.trim() === '') return true;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }, 'Please enter a valid email address'),
+  timezone: z.string().optional(),
   schedules: z.array(z.object({
     dayOfWeek: z.enum(['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']),
     startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
@@ -55,12 +107,10 @@ export function StudentCreationModal({
   loading,
   notification
 }: StudentCreationModalProps) {
-  const [step, setStep] = useState<'details' | 'schedule' | 'review'>('details')
-  const [generatedCredentials, setGeneratedCredentials] = useState<{
-    loginCode: string
-    password: string
-    displayPassword: string
-  } | null>(null)
+  const [step, setStep] = useState<'details' | 'schedule'>('details')
+  
+  // Get default schedule slot
+  const defaultSlot = getDefaultScheduleSlot()
 
   const {
     register,
@@ -75,10 +125,8 @@ export function StudentCreationModal({
     defaultValues: {
       name: '',
       email: '',
-      sendInvite: true,
-      generateCredentials: true,
-      classIds: [],
-      schedules: []
+      timezone: getTeacherTimezone(),
+      schedules: [defaultSlot] // Auto-populate first slot
     }
   })
 
@@ -88,36 +136,46 @@ export function StudentCreationModal({
   })
 
   const watchedValues = watch()
-  const selectedClasses = classes.filter(cls => watchedValues.classIds.includes(cls.id))
 
   const addScheduleSlot = () => {
+    // Get default values, preferring last used schedule slot
+    const defaultSlot = getDefaultScheduleSlot()
+    
     appendSchedule({
-      dayOfWeek: 'MONDAY',
-      startTime: '09:00',
-      endTime: '10:00',
-      title: '',
-      notes: ''
+      dayOfWeek: defaultSlot.dayOfWeek,
+      startTime: defaultSlot.startTime,
+      endTime: defaultSlot.endTime,
+      title: defaultSlot.title || '',
+      notes: defaultSlot.notes || ''
     })
   }
 
   const handleFormSubmit = async (data: StudentFormData) => {
     try {
-      let credentials = null
-      if (data.generateCredentials) {
-        credentials = generateStudentCredentials()
-        setGeneratedCredentials(credentials)
+      // Save the last schedule slot for next time if we have schedules
+      if (data.schedules && data.schedules.length > 0) {
+        const lastSchedule = data.schedules[data.schedules.length - 1]
+        saveLastScheduleSlot({
+          dayOfWeek: lastSchedule.dayOfWeek,
+          startTime: lastSchedule.startTime,
+          endTime: lastSchedule.endTime,
+          title: lastSchedule.title,
+          notes: lastSchedule.notes
+        })
       }
 
-      await onSubmit({
+      // Create a unique class for this student (1:1 relationship)
+      const studentClassData = {
         ...data,
-        schedules: data.schedules || []
-      })
-
-      if (data.generateCredentials && credentials) {
-        setStep('review')
-      } else {
-        handleClose()
+        schedules: data.schedules || [],
+        // Auto-generate a class for this student
+        generateOwnClass: true
       }
+
+      await onSubmit(studentClassData as StudentCreationForm)
+      
+      // Close modal on success
+      handleClose()
     } catch (error) {
       console.error('Failed to create student:', error)
     }
@@ -126,17 +184,7 @@ export function StudentCreationModal({
   const handleClose = () => {
     reset()
     setStep('details')
-    setGeneratedCredentials(null)
     onClose()
-  }
-
-  const toggleClassSelection = (classId: string) => {
-    const currentIds = watchedValues.classIds
-    if (currentIds.includes(classId)) {
-      setValue('classIds', currentIds.filter(id => id !== classId))
-    } else {
-      setValue('classIds', [...currentIds, classId])
-    }
   }
 
   const checkScheduleConflicts = (scheduleIndex: number) => {
@@ -147,34 +195,16 @@ export function StudentCreationModal({
     return hasScheduleConflict(currentSchedule, otherSchedules)
   }
 
-  const downloadLoginCard = () => {
-    if (!generatedCredentials) return
+  const checkDuplicateSchedule = (scheduleIndex: number) => {
+    const currentSchedule = watchedValues.schedules?.[scheduleIndex]
+    if (!currentSchedule) return false
 
-    const cardData = {
-      studentName: watchedValues.name,
-      loginCode: generatedCredentials.loginCode,
-      password: generatedCredentials.displayPassword,
-      schoolName: 'Write on English',
-      instructions: 'Use these credentials to log into your student account'
-    }
-
-    // Create a printable login card (simplified version)
-    const printContent = `
-      <div style="font-family: Arial, sans-serif; padding: 20px; border: 2px solid #E55A3C; border-radius: 10px; max-width: 400px;">
-        <h2 style="color: #E55A3C; margin-bottom: 20px;">Write on English - Student Login Card</h2>
-        <p><strong>Student:</strong> ${cardData.studentName}</p>
-        <p><strong>Login Code:</strong> <span style="font-size: 18px; font-weight: bold;">${cardData.loginCode}</span></p>
-        <p><strong>Password:</strong> <span style="font-size: 18px; font-weight: bold;">${cardData.password}</span></p>
-        <p style="margin-top: 20px; font-size: 12px; color: #666;">${cardData.instructions}</p>
-      </div>
-    `
-    
-    const printWindow = window.open('', '_blank')
-    if (printWindow) {
-      printWindow.document.write(printContent)
-      printWindow.document.close()
-      printWindow.print()
-    }
+    const otherSchedules = watchedValues.schedules?.filter((_, index) => index !== scheduleIndex) || []
+    return otherSchedules.some(schedule => 
+      schedule.dayOfWeek === currentSchedule.dayOfWeek &&
+      schedule.startTime === currentSchedule.startTime &&
+      schedule.endTime === currentSchedule.endTime
+    )
   }
 
   if (!isOpen) return null
@@ -193,7 +223,6 @@ export function StudentCreationModal({
               <p className="text-sm text-gray-500">
                 {step === 'details' && 'Enter student information'}
                 {step === 'schedule' && 'Set up class schedule'}
-                {step === 'review' && 'Review and download credentials'}
               </p>
             </div>
           </div>
@@ -205,9 +234,9 @@ export function StudentCreationModal({
         {/* Progress Steps */}
         <div className="px-6 py-4 bg-gray-50">
           <div className="flex items-center justify-between">
-            {['details', 'schedule', 'review'].map((stepName, index) => {
+            {['details', 'schedule'].map((stepName, index) => {
               const isActive = step === stepName
-              const isCompleted = ['details', 'schedule'].indexOf(step) > ['details', 'schedule'].indexOf(stepName)
+              const isCompleted = step === 'schedule' && stepName === 'details'
               
               return (
                 <div key={stepName} className="flex items-center">
@@ -221,9 +250,8 @@ export function StudentCreationModal({
                   <span className={`ml-2 text-sm ${isActive ? 'text-orange-600 font-medium' : 'text-gray-500'}`}>
                     {stepName === 'details' && 'Details'}
                     {stepName === 'schedule' && 'Schedule'}
-                    {stepName === 'review' && 'Review'}
                   </span>
-                  {index < 2 && <div className="w-12 h-px bg-gray-300 mx-4" />}
+                  {index < 1 && <div className="w-12 h-px bg-gray-300 mx-4" />}
                 </div>
               )
             })}
@@ -253,7 +281,7 @@ export function StudentCreationModal({
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email Address *
+                      Email Address
                     </label>
                     <Input
                       {...register('email')}
@@ -261,71 +289,39 @@ export function StudentCreationModal({
                       placeholder="student@example.com"
                       className={errors.email ? 'border-red-300' : ''}
                     />
+                    <p className="mt-1 text-sm text-gray-500">Optional</p>
                     {errors.email && (
                       <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
                     )}
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Timezone
+                    </label>
+                    <select
+                      {...register('timezone')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500"
+                    >
+                      <option value={Intl.DateTimeFormat().resolvedOptions().timeZone}>
+                        {Intl.DateTimeFormat().resolvedOptions().timeZone} (Default)
+                      </option>
+                      <option value="America/New_York">America/New_York</option>
+                      <option value="America/Chicago">America/Chicago</option>
+                      <option value="America/Denver">America/Denver</option>
+                      <option value="America/Los_Angeles">America/Los_Angeles</option>
+                      <option value="Europe/London">Europe/London</option>
+                      <option value="Europe/Paris">Europe/Paris</option>
+                      <option value="Asia/Tokyo">Asia/Tokyo</option>
+                    </select>
+                    <p className="mt-1 text-sm text-gray-500">Optional - defaults to your timezone</p>
+                  </div>
                 </div>
 
-                {/* Class Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Assign to Classes *
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {classes.map((cls) => (
-                      <div
-                        key={cls.id}
-                        onClick={() => toggleClassSelection(cls.id)}
-                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                          watchedValues.classIds.includes(cls.id)
-                            ? 'border-orange-500 bg-orange-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-4 h-4 rounded-full"
-                            style={{ backgroundColor: cls.color }}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 truncate">{cls.name}</p>
-                            <p className="text-sm text-gray-500">{cls.level}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {errors.classIds && (
-                    <p className="mt-2 text-sm text-red-600">{errors.classIds.message}</p>
-                  )}
-                </div>
-
-                {/* Options */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      {...register('sendInvite')}
-                      className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                    />
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-700">Send email invitation</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      {...register('generateCredentials')}
-                      className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                    />
-                    <div className="flex items-center gap-2">
-                      <Download className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-700">Generate printable login card</span>
-                    </div>
-                  </div>
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-700">
+                    <strong>Note:</strong> Each student will automatically get their own dedicated class for personalized learning.
+                  </p>
                 </div>
               </div>
             )}
@@ -337,6 +333,9 @@ export function StudentCreationModal({
                   <div>
                     <h3 className="text-lg font-medium text-gray-900">Class Schedule</h3>
                     <p className="text-sm text-gray-500">Set up when this student has classes</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Times shown in {Intl.DateTimeFormat().resolvedOptions().timeZone}
+                    </p>
                   </div>
                   <Button
                     type="button"
@@ -416,6 +415,14 @@ export function StudentCreationModal({
                         </div>
                       )}
 
+                      {checkDuplicateSchedule(index) && (
+                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                          <p className="text-sm text-yellow-700">
+                            ⚠️ This time already exists. Pick a different time.
+                          </p>
+                        </div>
+                      )}
+
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Notes (optional)
@@ -438,105 +445,53 @@ export function StudentCreationModal({
                 </div>
               </div>
             )}
-
-            {/* Step 3: Review & Credentials */}
-            {step === 'review' && generatedCredentials && (
-              <div className="space-y-6">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <UserPlus className="w-8 h-8 text-green-600" />
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900">Student Created Successfully!</h3>
-                  <p className="text-sm text-gray-500">Login credentials have been generated</p>
-                </div>
-
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <h4 className="font-medium text-gray-900 mb-4">Student Login Credentials</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Student Name:</span>
-                      <span className="text-sm font-medium">{watchedValues.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Login Code:</span>
-                      <span className="text-sm font-mono font-bold">{generatedCredentials.loginCode}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Password:</span>
-                      <span className="text-sm font-mono font-bold">{generatedCredentials.displayPassword}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={downloadLoginCard}
-                    className="flex-1 flex items-center justify-center gap-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download Login Card
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleClose}
-                    className="flex-1 bg-orange-500 hover:bg-orange-600"
-                  >
-                    Done
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Footer */}
-          {step !== 'review' && (
-            <div className="border-t bg-gray-50 px-6 py-4 flex justify-between">
-              <div>
-                {step === 'schedule' && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setStep('details')}
-                  >
-                    Back
-                  </Button>
-                )}
-              </div>
-              
-              <div className="flex gap-3">
+          <div className="border-t bg-gray-50 px-6 py-4 flex justify-between">
+            <div>
+              {step === 'schedule' && (
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={handleClose}
+                  onClick={() => setStep('details')}
                 >
-                  Cancel
+                  Back
                 </Button>
-                
-                {step === 'details' && (
-                  <Button
-                    type="button"
-                    onClick={() => setStep('schedule')}
-                    disabled={!watchedValues.name || !watchedValues.email || watchedValues.classIds.length === 0}
-                    className="bg-orange-500 hover:bg-orange-600"
-                  >
-                    Next: Schedule
-                  </Button>
-                )}
-                
-                {step === 'schedule' && (
-                  <Button
-                    type="submit"
-                    disabled={loading.isLoading}
-                    className="bg-orange-500 hover:bg-orange-600"
-                  >
-                    {loading.isLoading ? 'Creating...' : 'Create Student'}
-                  </Button>
-                )}
-              </div>
+              )}
             </div>
-          )}
+            
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+              >
+                Cancel
+              </Button>
+              
+              {step === 'details' && (
+                <Button
+                  type="button"
+                  onClick={() => setStep('schedule')}
+                  disabled={!watchedValues.name}
+                  className="bg-orange-500 hover:bg-orange-600"
+                >
+                  Next: Schedule
+                </Button>
+              )}
+              
+              {step === 'schedule' && (
+                <Button
+                  type="submit"
+                  disabled={loading.isLoading}
+                  className="bg-orange-500 hover:bg-orange-600"
+                >
+                  {loading.isLoading ? 'Creating...' : 'Create Student'}
+                </Button>
+              )}
+            </div>
+          </div>
         </form>
 
         {/* Notification */}

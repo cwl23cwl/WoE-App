@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { ResponsiveLayout } from '@/components/dashboard/responsive-layout'
 import { OverviewHeader } from '@/components/dashboard/overview-header'
 import { ClassCardsAccordion } from '@/components/dashboard/class-cards-accordion'
+import { StudentList } from '@/components/dashboard/student-list'
 import { CalendarView } from '@/components/dashboard/calendar-view'
 import { Class, DashboardStats, AssignmentFolder, StudentCreationForm, AssignmentCreationForm, LoadingState, NotificationState } from '@/lib/types'
 import { Card } from '@/components/ui/card'
@@ -17,6 +18,7 @@ export default function TeacherDashboard() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'overview' | 'calendar'>('overview')
+  const [viewMode, setViewMode] = useState<'classes' | 'students'>('classes')
   const [isLoading, setIsLoading] = useState(true)
   const [classes, setClasses] = useState<Class[]>([])
   const [stats, setStats] = useState<DashboardStats>({
@@ -172,6 +174,21 @@ export default function TeacherDashboard() {
     fetchDashboardData()
   }, [session, status, router, fetchDashboardData])
 
+  // Extract all students from classes
+  const allStudents = classes.flatMap(cls => 
+    cls.enrollments?.map(enrollment => ({
+      ...enrollment.student,
+      enrollments: [{ class: cls }],
+      submissions: [] // TODO: Include student submissions if needed
+    })) || []
+  )
+
+  // Extract all assignments from classes  
+  const allAssignments = classes.flatMap(cls => [
+    ...cls.assignments,
+    ...(cls.folders?.flatMap(folder => folder.assignments) || [])
+  ])
+
   const handleStudentClick = (studentId: string) => {
     router.push(`/dashboard/students/${studentId}` as any)
   }
@@ -326,32 +343,64 @@ export default function TeacherDashboard() {
           </Button>
         </div>
 
+        {/* View Mode Toggle - Only show in overview */}
+        {activeTab === 'overview' && (
+          <div className="flex gap-2 mb-6">
+            <Button
+              variant={viewMode === 'classes' ? 'primary' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('classes')}
+            >
+              📚 Classes View
+            </Button>
+            <Button
+              variant={viewMode === 'students' ? 'primary' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('students')}
+            >
+              👥 Students View
+            </Button>
+          </div>
+        )}
+
         {activeTab === 'overview' ? (
           <div className="space-y-6">
-            {classes.length > 0 ? (
-              <ClassCardsAccordion
-                classes={classes}
-                onStudentClick={handleStudentClick}
-                onMoveAssignment={handleMoveAssignment}
-                onCreateFolder={handleCreateFolder}
-                onUpdateFolder={handleUpdateFolder}
-                onDeleteFolder={handleDeleteFolder}
-                isLoading={isLoading}
-                defaultOpenFirst={true}
-              />
+            {viewMode === 'classes' ? (
+              // Classes View
+              classes.length > 0 ? (
+                <ClassCardsAccordion
+                  classes={classes}
+                  onStudentClick={handleStudentClick}
+                  onMoveAssignment={handleMoveAssignment}
+                  onCreateFolder={handleCreateFolder}
+                  onUpdateFolder={handleUpdateFolder}
+                  onDeleteFolder={handleDeleteFolder}
+                  isLoading={isLoading}
+                  defaultOpenFirst={true}
+                />
+              ) : (
+                <Card className="p-12 text-center">
+                  <div className="text-gray-500 space-y-4">
+                    <div className="text-6xl">📚</div>
+                    <h3 className="text-xl font-medium">No classes yet</h3>
+                    <p className="text-gray-400">
+                      Create your first class to start teaching!
+                    </p>
+                    <Button className="mt-4">
+                      Create Your First Class
+                    </Button>
+                  </div>
+                </Card>
+              )
             ) : (
-              <Card className="p-12 text-center">
-                <div className="text-gray-500 space-y-4">
-                  <div className="text-6xl">📚</div>
-                  <h3 className="text-xl font-medium">No classes yet</h3>
-                  <p className="text-gray-400">
-                    Create your first class to start teaching!
-                  </p>
-                  <Button className="mt-4">
-                    Create Your First Class
-                  </Button>
-                </div>
-              </Card>
+              // Students View
+              <StudentList
+                students={allStudents}
+                assignments={allAssignments}
+                onStudentClick={handleStudentClick}
+                isLoading={isLoading}
+                emptyMessage="No students enrolled yet. Create a class and add students to get started!"
+              />
             )}
           </div>
         ) : (

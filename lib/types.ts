@@ -236,11 +236,10 @@ export interface AssignmentTemplateLibrary {
 // Form Data Types
 export interface StudentCreationForm {
   name: string
-  email: string
-  sendInvite: boolean
-  generateCredentials: boolean
+  email?: string
+  timezone?: string
   schedules: ScheduleInput[]
-  classIds: string[]
+  generateOwnClass?: boolean // Flag to auto-generate a class for the student
 }
 
 export interface ScheduleInput {
