@@ -140,7 +140,7 @@ export interface WorkspaceActions {
 
 // Default text styling - Classic, simple, readable fonts
 const DEFAULT_TEXT_DEFAULTS: TextDefaults = {
-  fontFamily: '"Times New Roman", Georgia, serif',
+  fontFamily: 'Times New Roman',
   fontSize: 24,
   bold: false,
   italic: false,

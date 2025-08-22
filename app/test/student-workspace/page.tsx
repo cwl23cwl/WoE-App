@@ -1,14 +1,15 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { TopToolbar } from '../../../src/features/workspace/TopToolbar'
 import { ToolDrawer } from '../../../src/features/workspace/ToolDrawer'
-import { CanvasShell } from '../../../src/features/workspace/CanvasShell'
+import { ExcalidrawCanvasNative } from '../../../components/workspace/ExcalidrawCanvasNative'
 import { InstructionsPanel } from '../../../src/features/workspace/InstructionsPanel'
-import { HelpCircle, User, MoreVertical } from 'lucide-react'
+import { HelpCircle, User, MoreVertical, ChevronLeft, ChevronRight } from 'lucide-react'
 
 // Test page that bypasses authentication to preview the student workspace
 export default function TestStudentWorkspacePage() {
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Dev notice */}
@@ -78,17 +79,58 @@ export default function TestStudentWorkspacePage() {
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 px-4 sm:px-8 pb-8">
-        <div className="flex flex-col xl:flex-row gap-4 xl:gap-6">
-          {/* Canvas Area */}
-          <div className="flex-1 min-w-0">
-            <CanvasShell />
-          </div>
+      {/* Fixed Instructions Panel - Always on Right Side */}
+      <div className={`fixed top-0 right-0 w-64 lg:w-80 h-screen bg-white border-l border-neutral-200 shadow-lg z-40 overflow-y-auto transition-transform duration-300 ${
+        sidebarOpen ? 'translate-x-0' : 'translate-x-full'
+      }`}>
+        {/* Sidebar Header */}
+        <div className="flex items-center justify-between p-3 lg:p-4 border-b border-neutral-200">
+          <h3 className="font-semibold text-neutral-800">What to do</h3>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="p-1 rounded hover:bg-neutral-100 transition-colors"
+            aria-label="Close sidebar"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+        
+        {/* Sidebar Content */}
+        <div className="p-3 lg:p-4">
+          <InstructionsPanel />
+        </div>
+      </div>
 
-          {/* Instructions Panel - Right Side */}
-          <div className="w-full xl:w-80 shrink-0">
-            <InstructionsPanel />
+      {/* Sidebar Toggle Button - Shows when closed */}
+      {!sidebarOpen && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="fixed top-1/2 right-4 -translate-y-1/2 bg-brand-primary text-white p-2 rounded-l-lg shadow-lg z-30 hover:bg-brand-primary/90 transition-colors"
+          aria-label="Open sidebar"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+      )}
+
+      {/* Overlay for mobile when sidebar is open */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="Close sidebar"
+        />
+      )}
+
+      {/* Main Content Area - Adjusted for Fixed Sidebar */}
+      <div className={`flex-1 px-4 sm:px-8 pb-8 transition-all duration-300 ${
+        sidebarOpen ? 'pr-64 lg:pr-80' : 'pr-4 sm:pr-8'
+      }`}>
+        <div className="w-full h-full">
+          {/* Canvas Area - Full Available Space */}
+          <div className="w-full h-[calc(100vh-200px)]">
+            <div className="w-full h-full bg-white rounded-2xl shadow-lg border border-neutral-200 canvas-container">
+              <ExcalidrawCanvasNative />
+            </div>
           </div>
         </div>
       </div>

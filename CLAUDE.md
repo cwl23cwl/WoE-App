@@ -66,12 +66,41 @@
    - **Drag-to-commit**: Color wheels update live, close on pointer-up
    - **Visual stability**: Icons never move, center stays perfectly centered
 
+6. **Font functionality complete workflow** - ✅ RESOLVED: Seamless font selection and text creation
+   - **Problem 1**: Font selection deactivated text tool, required reselecting Text tool
+   - **Problem 2**: Selected fonts weren't applying to text elements on canvas
+   - **Solution**: Fixed tool state persistence and font mapping between UI and Excalidraw
+   - **Font mapping**: Simplified to Excalidraw-compatible names (Helvetica, Times New Roman, Courier New)
+   - **Tool persistence**: Text tool stays active during font changes and text editing
+   - **Current workflow**: Text tool → Font selection → Create text → Edit existing text → Change fonts (all seamless)
+
+7. **Canvas zoom control system** - ✅ RESOLVED: Comprehensive zoom behavior management
+   - **Canvas zoom lock**: Internal canvas always locked at 100% zoom, never changes
+   - **Browser zoom passthrough**: Trackpad pinch (Ctrl+wheel), keyboard (Ctrl/Cmd +/-/0), mobile pinch all work
+   - **Vertical scroll disabled**: Mouse wheel vertical scroll blocked on canvas, horizontal scroll allowed for panning
+   - **UI elements hidden**: All Excalidraw zoom buttons/controls removed via CSS
+   - **Responsive refresh**: Canvas automatically refreshes on layout changes and breakpoint transitions
+   - **Result**: Canvas never internally zooms, browser/page zoom works perfectly through all input methods
+
+8. **Canvas layout and responsiveness** - ✅ RESOLVED: Fixed layout issues when sidebar repositions
+   - **Problem**: Canvas unusable when "what to do" sidebar moved from beside to below canvas
+   - **Root cause**: Wrong canvas component in test page + responsive layout dimension issues
+   - **Solution**: Updated test page to use correct ExcalidrawCanvasNative component
+   - **Responsive fixes**: Added ResizeObserver, MediaQuery listeners, and breakpoint-specific refresh logic
+   - **Layout optimization**: Proper height constraints for both horizontal (xl+) and vertical (<xl) layouts
+   - **Result**: Canvas fully functional at all screen sizes with automatic adaptation to layout changes
+
 ### 🚨 IMMEDIATE TASKS  
-1. **Enhanced custom color palette** - Replace basic HTML color input with professional color picker
+1. **Fixed right sidebar implementation** - ⚠️ IN PROGRESS: Persistent "what to do" panel
+   - **Goal**: Keep instructions panel always visible on right side, even during browser zoom
+   - **Current State**: Fixed positioning implemented with toggle functionality and responsive behavior
+   - **Issue**: Still has layout problems, needs refinement
+   - **Target**: Truly fixed sidebar that works seamlessly at all zoom levels and screen sizes
+
+2. **Enhanced custom color palette** - Replace basic HTML color input with professional color picker
    - **Specific Goal**: Improve the 🎨 color wheel experience with better UX, color harmony suggestions, visual design upgrades
    - **Current State**: Basic HTML `<input type="color">` in text drawer popovers
    - **Target**: Professional color picker with presets, harmony tools, history, and smooth interactions
-2. **Increase canvas size and redo page layout** for better user experience
 
 ---
 

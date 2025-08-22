@@ -21,21 +21,21 @@ const FONT_OPTIONS: FontOption[] = [
     id: 'sans',
     name: 'Sans',
     label: 'Sans',
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    fontFamily: 'Helvetica',
     category: 'sans'
   },
   {
     id: 'serif', 
     name: 'Serif',
     label: 'Serif',
-    fontFamily: '"Times New Roman", Georgia, "Times", serif',
+    fontFamily: 'Times New Roman',
     category: 'serif'
   },
   {
     id: 'mono',
     name: 'Mono',
     label: 'Mono', 
-    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    fontFamily: 'Courier New',
     category: 'mono'
   },
   // Note: Comic and Dyslexia fonts would be conditionally included based on availability
@@ -50,7 +50,7 @@ export function FontPicker({ value, onChange, className = '' }: FontPickerProps)
 
   // Find current font index
   const currentFontIndex = FONT_OPTIONS.findIndex(font => 
-    value.includes(font.fontFamily.split(',')[0].replace(/"/g, ''))
+    value.includes(font.fontFamily) || value.toLowerCase().includes(font.fontFamily.toLowerCase())
   )
 
   useEffect(() => {
@@ -83,7 +83,7 @@ export function FontPicker({ value, onChange, className = '' }: FontPickerProps)
         case 'Escape':
           event.preventDefault()
           setIsOpen(false)
-          triggerRef.current?.focus()
+          // Don't focus to avoid tool state changes
           break
       }
     }
@@ -95,12 +95,12 @@ export function FontPicker({ value, onChange, className = '' }: FontPickerProps)
   const handleSelect = (font: FontOption) => {
     onChange(font.fontFamily)
     setIsOpen(false)
-    triggerRef.current?.focus()
+    // Don't focus the trigger to avoid interfering with text tool state
   }
 
   const getCurrentFontLabel = () => {
     const current = FONT_OPTIONS.find(font => 
-      value.includes(font.fontFamily.split(',')[0].replace(/"/g, ''))
+      value.includes(font.fontFamily) || value.toLowerCase().includes(font.fontFamily.toLowerCase())
     )
     return current?.label || 'Font'
   }
@@ -169,7 +169,7 @@ export function FontPicker({ value, onChange, className = '' }: FontPickerProps)
                   {/* Font preview */}
                   <div 
                     className="text-2xl font-medium text-neutral-800"
-                    style={{ fontFamily: font.fontFamily }}
+                    style={{ fontFamily: `${font.fontFamily}, sans-serif` }}
                   >
                     {previewMode}
                   </div>

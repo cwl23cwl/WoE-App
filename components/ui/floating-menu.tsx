@@ -25,46 +25,61 @@ export function FloatingMenu({
 
   // Calculate position
   useEffect(() => {
-    if (!isOpen || !trigger.current || !menuRef.current) return
+    if (!isOpen || !trigger.current) return
 
     const updatePosition = () => {
       const triggerRect = trigger.current!.getBoundingClientRect()
-      const menuRect = menuRef.current!.getBoundingClientRect()
       const viewport = {
         width: window.innerWidth,
         height: window.innerHeight
       }
 
+      // Get scroll positions to account for page scrolling
+      const scrollX = window.pageXOffset || document.documentElement.scrollLeft
+      const scrollY = window.pageYOffset || document.documentElement.scrollTop
+
+      // Calculate position relative to viewport
       let x = triggerRect.left
       let y = triggerRect.bottom + offset
       let finalPlacement = 'bottom'
 
-      // Auto-flip logic
+      // Auto-flip logic - estimate menu height as 150px if not rendered yet
+      const estimatedMenuHeight = menuRef.current?.getBoundingClientRect().height || 150
+      
       if (placement === 'auto') {
         const spaceBelow = viewport.height - triggerRect.bottom
         const spaceAbove = triggerRect.top
         
-        if (spaceBelow < menuRect.height + offset && spaceAbove > spaceBelow) {
-          y = triggerRect.top - menuRect.height - offset
+        if (spaceBelow < estimatedMenuHeight + offset && spaceAbove > spaceBelow) {
+          y = triggerRect.top - estimatedMenuHeight - offset
           finalPlacement = 'top'
         }
       } else if (placement === 'top') {
-        y = triggerRect.top - menuRect.height - offset
+        y = triggerRect.top - estimatedMenuHeight - offset
         finalPlacement = 'top'
       }
 
       // Keep menu within viewport horizontally
-      if (x + menuRect.width > viewport.width) {
-        x = viewport.width - menuRect.width - 8
+      const estimatedMenuWidth = menuRef.current?.getBoundingClientRect().width || 250
+      if (x + estimatedMenuWidth > viewport.width) {
+        x = viewport.width - estimatedMenuWidth - 8
       }
       if (x < 8) {
         x = 8
       }
 
+      // Ensure minimum distance from edges
+      x = Math.max(8, Math.min(x, viewport.width - estimatedMenuWidth - 8))
+      y = Math.max(8, Math.min(y, viewport.height - estimatedMenuHeight - 8))
+
       setPosition({ x, y, placement: finalPlacement })
     }
 
+    // Initial position calculation
     updatePosition()
+    
+    // Recalculate when menu dimensions are available
+    const timer = setTimeout(updatePosition, 0)
     
     // Update on scroll/resize
     const handleUpdate = () => requestAnimationFrame(updatePosition)
@@ -72,6 +87,7 @@ export function FloatingMenu({
     window.addEventListener('resize', handleUpdate)
     
     return () => {
+      clearTimeout(timer)
       window.removeEventListener('scroll', handleUpdate, true)
       window.removeEventListener('resize', handleUpdate)
     }
@@ -137,12 +153,13 @@ export function FloatingMenu({
         ref={menuRef}
         className={`
           fixed bg-white border border-neutral-200 rounded-md shadow-lg
-          z-floating-menu pointer-events-auto
+          pointer-events-auto
           ${className}
         `}
         style={{
           left: position.x,
           top: position.y,
+          zIndex: 900, // Use CSS variable value directly
         }}
         role="menu"
         aria-hidden={!isOpen}

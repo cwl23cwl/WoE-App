@@ -7,7 +7,8 @@ import { useWorkspaceStore } from '@/stores/useWorkspaceStore'
 // Import Excalidraw CSS
 import '@excalidraw/excalidraw/index.css'
 
-// Text box creation fix: Enhanced component with state tracking and reset functionality
+// Enhanced component with zoom control and browser zoom passthrough
+// Prevents internal canvas zoom while allowing browser/page zoom
 
 interface ExcalidrawCanvasNativeProps {
   className?: string
@@ -15,17 +16,22 @@ interface ExcalidrawCanvasNativeProps {
 
 export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativeProps) {
   const excalidrawRef = useRef<any>(null)
+  const canvasWrapperRef = useRef<HTMLDivElement>(null)
   
   // Store access for tool synchronization
   const { 
     setExcalidrawAPI, 
     activeTool, 
+    setActiveTool,
     toolPrefs, 
     editingTextId, 
     selectedElementIds, 
     setEditingTextId, 
     setSelectedElementIds 
   } = useWorkspaceStore()
+
+  // Zoom control constants
+  const LOCKED_ZOOM = 1.0 // Keep canvas at 100% zoom
 
   // Stable initialData
   const initialData = {
@@ -47,11 +53,52 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
     }
   }
 
-  // Change handler with state tracking
+  // Helper function to map Excalidraw tools back to store tools
+  const mapToolFromExcalidraw = (excalidrawTool: string) => {
+    switch (excalidrawTool) {
+      case 'selection': return 'select'
+      case 'freedraw': return 'draw' // Default to draw for freedraw
+      case 'text': return 'text'
+      case 'eraser': return 'erase'
+      default: return 'select'
+    }
+  }
+
+  // Change handler with state tracking and zoom lock
   const handleChange = useCallback((elements: any, appState: any, files: any) => {
+    // ZOOM CONTROL: Lock canvas at 100% zoom
+    const currentZoom = appState.zoom?.value || 1.0
+    if (Math.abs(currentZoom - LOCKED_ZOOM) > 0.01) {
+      // Zoom has changed, snap it back
+      console.log('🔒 Locking zoom at 100% (was:', currentZoom, ')')
+      if (excalidrawRef.current) {
+        setTimeout(() => {
+          excalidrawRef.current.updateScene({
+            appState: { zoom: { value: LOCKED_ZOOM } }
+          })
+        }, 0)
+      }
+    }
+    
     // Track text editing state changes
     const currentEditingTextId = appState.editingElement?.id || null
     const currentSelectedIds = appState.selectedElementIds || []
+    
+    // Smart tool sync: Keep text tool active when working with text
+    const excalidrawActiveTool = appState.activeTool?.type
+    if (excalidrawActiveTool) {
+      // Check if we're working with text elements
+      const isEditingText = currentEditingTextId !== null
+      const hasSelectedText = currentSelectedIds.length > 0 && elements.some((el: any) => 
+        currentSelectedIds.includes(el.id) && el.type === 'text'
+      )
+      
+      // If we're editing or have selected text, ensure Text tool stays active in UI
+      if ((isEditingText || hasSelectedText) && activeTool !== 'text') {
+        console.log('🔄 Auto-switching to text tool - editing:', isEditingText, 'selected text:', hasSelectedText)
+        setActiveTool('text')
+      }
+    }
     
     // Update store if text editing state has changed
     if (currentEditingTextId !== editingTextId) {
@@ -62,26 +109,182 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
     if (JSON.stringify(currentSelectedIds) !== JSON.stringify(selectedElementIds)) {
       setSelectedElementIds(currentSelectedIds)
     }
-  }, [editingTextId, selectedElementIds, setEditingTextId, setSelectedElementIds])
+  }, [editingTextId, selectedElementIds, activeTool, setEditingTextId, setSelectedElementIds, setActiveTool])
 
-  // API handler with tool setup
+  // API handler with tool setup and zoom initialization
   const handleExcalidrawAPI = useCallback((api: any) => {
     excalidrawRef.current = api
     
     if (api) {
       setExcalidrawAPI(api)
       
-      // Set initial tool after delay
+      // Set initial tool and zoom after delay
       setTimeout(() => {
         try {
           const excalidrawTool = mapToolToExcalidraw(activeTool)
           api.setActiveTool({ type: excalidrawTool })
+          
+          // Set initial zoom lock
+          api.updateScene({
+            appState: { zoom: { value: LOCKED_ZOOM } }
+          })
+          console.log('🔒 Initial zoom locked at 100%')
         } catch (error) {
-          console.error('❌ Initial tool setup failed:', error)
+          console.error('❌ Initial tool/zoom setup failed:', error)
         }
       }, 100)
     }
   }, [setExcalidrawAPI, activeTool])
+  
+  // BROWSER ZOOM PASSTHROUGH & SCROLL CONTROL: Handle wheel events
+  useEffect(() => {
+    const canvasWrapper = canvasWrapperRef.current
+    if (!canvasWrapper) return
+    
+    const handleWheel = (event: WheelEvent) => {
+      // Check if this is a browser zoom gesture (Ctrl/Cmd + wheel)
+      if (event.ctrlKey || event.metaKey) {
+        console.log('🔄 Browser zoom wheel detected, allowing passthrough')
+        // Stop propagation so Excalidraw doesn't see it
+        event.stopPropagation()
+        // DON'T preventDefault - let browser handle the zoom
+        return
+      }
+      
+      // Block vertical scrolling, allow horizontal scrolling
+      if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+        console.log('🚫 Blocking vertical scroll on canvas')
+        event.preventDefault()
+        event.stopPropagation()
+        return
+      }
+      
+      // Allow horizontal scroll - let Excalidraw handle it for panning
+      console.log('✅ Allowing horizontal scroll for canvas panning')
+    }
+    
+    // Use capture phase to intercept before Excalidraw
+    canvasWrapper.addEventListener('wheel', handleWheel, { capture: true, passive: false })
+    
+    return () => {
+      canvasWrapper.removeEventListener('wheel', handleWheel, { capture: true } as any)
+    }
+  }, [])
+  
+  // BROWSER ZOOM PASSTHROUGH: Handle keyboard shortcuts (Ctrl/Cmd + +/-/0)
+  useEffect(() => {
+    const handleKeydown = (event: KeyboardEvent) => {
+      const isZoomKey = (event.ctrlKey || event.metaKey) && 
+        (event.key === '+' || event.key === '=' || event.key === '-' || event.key === '0')
+      
+      if (isZoomKey) {
+        console.log('🔄 Browser zoom key detected:', event.key, 'allowing passthrough')
+        // Stop propagation so Excalidraw doesn't see it
+        event.stopPropagation()
+        // DON'T preventDefault - let browser handle the zoom
+        return
+      }
+    }
+    
+    // Use capture phase on document to catch before any other handlers
+    document.addEventListener('keydown', handleKeydown, { capture: true })
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeydown, { capture: true })
+    }
+  }, [])
+  
+  // LAYOUT RESPONSIVENESS: Handle container resize and layout changes
+  useEffect(() => {
+    const canvasWrapper = canvasWrapperRef.current
+    if (!canvasWrapper) return
+    
+    let resizeTimeout: NodeJS.Timeout
+    
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect
+        console.log('📏 Canvas container resized:', { width, height })
+        
+        // Debounce multiple rapid resizes
+        clearTimeout(resizeTimeout)
+        resizeTimeout = setTimeout(() => {
+          // Force Excalidraw to recalculate dimensions
+          if (excalidrawRef.current) {
+            try {
+              // Multiple refresh approaches for robustness
+              excalidrawRef.current.refresh?.()
+              
+              // Also try triggering a scene update to force re-render
+              excalidrawRef.current.updateScene?.({
+                appState: { zoom: { value: LOCKED_ZOOM } }
+              })
+              
+              console.log('🔄 Excalidraw refreshed after resize')
+            } catch (error) {
+              console.warn('⚠️ Excalidraw refresh failed:', error)
+            }
+          }
+        }, 150) // Debounce resizes
+      }
+    })
+    
+    resizeObserver.observe(canvasWrapper)
+    
+    // Also listen for window resize as backup
+    const handleWindowResize = () => {
+      clearTimeout(resizeTimeout)
+      resizeTimeout = setTimeout(() => {
+        console.log('🪟 Window resized, refreshing canvas')
+        if (excalidrawRef.current) {
+          try {
+            excalidrawRef.current.refresh?.()
+          } catch (error) {
+            console.warn('⚠️ Window resize refresh failed:', error)
+          }
+        }
+      }, 200)
+    }
+    
+    window.addEventListener('resize', handleWindowResize)
+    
+    return () => {
+      clearTimeout(resizeTimeout)
+      resizeObserver.disconnect()
+      window.removeEventListener('resize', handleWindowResize)
+    }
+  }, [])
+  
+  // BREAKPOINT RESPONSIVENESS: Handle xl breakpoint changes (sidebar position)
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(min-width: 1280px)') // xl breakpoint
+    
+    const handleBreakpointChange = (e: MediaQueryListEvent) => {
+      console.log('📱 Breakpoint changed - xl:', e.matches)
+      
+      // Give layout time to settle, then refresh canvas
+      setTimeout(() => {
+        if (excalidrawRef.current) {
+          try {
+            excalidrawRef.current.refresh?.()
+            excalidrawRef.current.updateScene?.({
+              appState: { zoom: { value: LOCKED_ZOOM } }
+            })
+            console.log('🔄 Canvas refreshed after breakpoint change')
+          } catch (error) {
+            console.warn('⚠️ Breakpoint refresh failed:', error)
+          }
+        }
+      }, 300)
+    }
+    
+    // Listen for breakpoint changes
+    mediaQuery.addEventListener('change', handleBreakpointChange)
+    
+    return () => {
+      mediaQuery.removeEventListener('change', handleBreakpointChange)
+    }
+  }, [])
 
   // Tool synchronization
   useEffect(() => {
@@ -139,8 +342,14 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
 
   return (
     <div 
+      ref={canvasWrapperRef}
       className={`w-full h-full ${className}`} 
-      style={{ minHeight: '600px' }}
+      style={{ 
+        minHeight: '600px',
+        touchAction: 'pan-x pan-y', // Allow browser pinch-zoom on mobile
+        overflowY: 'hidden', // Disable vertical scrolling
+        overflowX: 'auto' // Allow horizontal scrolling if needed
+      }}
     >
       <Excalidraw
         excalidrawAPI={handleExcalidrawAPI}
@@ -153,7 +362,9 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
             loadScene: false,
             export: false,
             toggleTheme: false,
-            clearCanvas: false
+            clearCanvas: false,
+            // Hide zoom controls
+            changeViewBackgroundColor: false
           },
           tools: {
             image: false
@@ -164,6 +375,7 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
         renderSidebar={() => null}
       />
       <style jsx global>{`
+        /* Hide all Excalidraw UI elements */
         .excalidraw .layer-ui__wrapper > * {
           display: none !important;
         }
@@ -184,6 +396,46 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
         }
         .excalidraw .App-bottom-bar {
           display: none !important;
+        }
+        
+        /* Hide zoom-specific UI elements */
+        .excalidraw [data-testid*="zoom"] {
+          display: none !important;
+        }
+        .excalidraw .zoom-actions {
+          display: none !important;
+        }
+        .excalidraw [aria-label*="zoom"] {
+          display: none !important;
+        }
+        .excalidraw [title*="zoom"] {
+          display: none !important;
+        }
+        .excalidraw [data-testid="zoom-in-button"],
+        .excalidraw [data-testid="zoom-out-button"],
+        .excalidraw [data-testid="reset-zoom-button"],
+        .excalidraw [data-testid="zoom-to-fit-button"] {
+          display: none !important;
+        }
+        
+        /* Ensure mobile touch handling works for browser zoom */
+        .excalidraw canvas {
+          touch-action: pan-x pan-y !important;
+        }
+        
+        /* Disable vertical scrolling on canvas */
+        .excalidraw,
+        .excalidraw .excalidraw-canvas {
+          overflow-y: hidden !important;
+          overflow-x: auto !important;
+        }
+        
+        /* Prevent vertical scrolling via CSS on the main canvas container */
+        .excalidraw .layer-ui__wrapper__top-left,
+        .excalidraw .layer-ui__wrapper__top-right,
+        .excalidraw .layer-ui__wrapper__bottom-left,
+        .excalidraw .layer-ui__wrapper__bottom-right {
+          overflow-y: hidden !important;
         }
       `}</style>
     </div>

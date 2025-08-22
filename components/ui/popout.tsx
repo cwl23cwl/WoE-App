@@ -28,17 +28,81 @@ export function Popout({
   const [position, setPosition] = useState({ top: 0, left: 0 })
   const [actualPlacement, setActualPlacement] = useState(placement)
 
-  // Calculate position immediately when opening
+  // Calculate position with proper viewport handling
   useEffect(() => {
     if (!isOpen || !anchorEl) return
 
-    const anchorRect = anchorEl.getBoundingClientRect()
-    let top = anchorRect.bottom + offset
-    let left = anchorRect.left
+    const calculatePosition = () => {
+      const anchorRect = anchorEl.getBoundingClientRect()
+      const viewport = {
+        width: window.innerWidth,
+        height: window.innerHeight
+      }
+      
+      // Start with basic positioning
+      let top = anchorRect.bottom + offset
+      let left = anchorRect.left
+      let finalPlacement = placement
 
-    // Immediate position set - no waiting for element
-    setPosition({ top, left })
-    setActualPlacement(placement)
+      // Handle different placement options
+      switch (placement) {
+        case 'bottom-start':
+          top = anchorRect.bottom + offset
+          left = anchorRect.left
+          break
+        case 'bottom-end':
+          top = anchorRect.bottom + offset
+          left = anchorRect.right - 180 // Reasonable estimate for popout width
+          break
+        case 'top-start':
+          top = anchorRect.top - offset - 80 // Reasonable estimate for popout height
+          left = anchorRect.left
+          break
+        case 'top-end':
+          top = anchorRect.top - offset - 80
+          left = anchorRect.right - 180
+          break
+      }
+
+      // Simple viewport constraints - keep it minimal to avoid issues
+      const minMargin = 16
+      
+      // Horizontal bounds
+      if (left < minMargin) {
+        left = minMargin
+      } else if (left + 180 > viewport.width - minMargin) {
+        left = viewport.width - 180 - minMargin
+      }
+      
+      // Vertical bounds - flip if needed
+      if (placement.includes('bottom') && top + 80 > viewport.height - minMargin) {
+        // Flip to top
+        top = anchorRect.top - offset - 80
+        if (placement === 'bottom-start') finalPlacement = 'top-start'
+        if (placement === 'bottom-end') finalPlacement = 'top-end'
+      } else if (placement.includes('top') && top < minMargin) {
+        // Flip to bottom
+        top = anchorRect.bottom + offset
+        if (placement === 'top-start') finalPlacement = 'bottom-start'
+        if (placement === 'top-end') finalPlacement = 'bottom-end'
+      }
+
+      setPosition({ top, left })
+      setActualPlacement(finalPlacement)
+    }
+
+    // Calculate immediately
+    calculatePosition()
+    
+    // Recalculate on scroll and resize
+    const handleUpdate = () => requestAnimationFrame(calculatePosition)
+    window.addEventListener('scroll', handleUpdate, true)
+    window.addEventListener('resize', handleUpdate)
+    
+    return () => {
+      window.removeEventListener('scroll', handleUpdate, true)
+      window.removeEventListener('resize', handleUpdate)
+    }
   }, [isOpen, anchorEl, placement, offset])
 
   // Handle click outside
@@ -81,6 +145,8 @@ export function Popout({
     if (!portalRoot) {
       portalRoot = document.createElement('div')
       portalRoot.id = 'ui-overlays'
+      portalRoot.style.position = 'relative'
+      portalRoot.style.zIndex = '900'
       document.body.appendChild(portalRoot)
     }
   }, [])
@@ -103,7 +169,7 @@ export function Popout({
       className={`
         fixed bg-white rounded-lg border border-neutral-200 shadow-lg
         transform transition-all duration-150 ease-out
-        ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0 pointer-events-none'}
+        scale-100 opacity-100
         ${caretClasses[actualPlacement] || ''}
         ${className}
       `}
