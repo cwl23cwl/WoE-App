@@ -20,14 +20,12 @@ const nextConfig = {
       };
     }
     
-    // Handle React version conflicts by aliasing React versions
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      // Force React versions to be consistent
-      'react': require.resolve('react'),
-      'react-dom': require.resolve('react-dom'),
-      'react/jsx-runtime': require.resolve('react/jsx-runtime'),
-      'react/jsx-dev-runtime': require.resolve('react/jsx-dev-runtime'),
+    // Add fallback for missing modules
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      path: false,
+      crypto: false,
     };
     
     // Ignore SES lockdown warnings and intrinsic removal warnings
@@ -42,18 +40,7 @@ const nextConfig = {
       {
         message: /Removing intrinsics/,
       },
-      {
-        message: /Module not found.*react\/jsx-runtime/,
-      }
     ];
-    
-    // Add fallback for missing modules
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      fs: false,
-      path: false,
-      crypto: false,
-    };
     
     return config;
   },

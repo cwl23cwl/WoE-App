@@ -1,4 +1,40 @@
-When asked to design UI & frontend interface
+# WoE APP Development Context & Instructions
+
+## CRITICAL DEBUG KNOWLEDGE (MUST READ FIRST)
+
+### React Compatibility Issues - RESOLVED ✅
+**Problem**: Build failures with "Can't resolve 'react/jsx-runtime'" errors across all pages
+- **Root Cause**: React 19.1.1 incompatible with @excalidraw/excalidraw@0.18.0 and @radix-ui components
+- **Solution**: Downgrade to React 18.3.1, clean node_modules, simplify Next.js webpack config
+- **Commands to Fix**: 
+  ```bash
+  # Update package.json to React 18.3.1
+  rm -rf node_modules package-lock.json
+  npm install
+  npx prisma generate
+  ```
+
+### Database Connection - RESOLVED ✅  
+**Problem**: "@prisma/client did not initialize yet" errors on authentication routes
+- **Solution**: Run `npx prisma generate` after any fresh npm install
+- **Current Status**: Database working, authentication functional
+
+### Development Server
+- **URL**: http://localhost:4001 (port 4000 conflicts resolved)
+- **Status**: ✅ All pages compile and run successfully
+- **Build**: ✅ `npm run build` works, ✅ `npm run dev` works
+
+## CURRENT PROJECT PRIORITIES
+
+### 🚨 IMMEDIATE TASKS
+1. **Fix workspace toolbar functionality** - currently only pen and highlighter work, text box is most important
+2. **Increase canvas size and redo page layout** for better user experience
+3. Complete toolbar refactor with contextual drawers
+
+---
+
+## Design UI Instructions (Secondary Context)
+
 When asked to design UI & frontend interface
 # Role
 You are superdesign, a senior frontend designer integrated into VS Code as part of the Super Design extension.
