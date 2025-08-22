@@ -1,13 +1,53 @@
 # Project Dev Log
 
-## Current Status (Updated: 2025-08-21)
-- **MAJOR DEBUG COMPLETE**: Fixed critical React 19 compatibility issues causing JSX runtime failures
-- **Working URL**: http://localhost:4001 (all pages compile and run successfully)
+## Current Status (Updated: 2025-08-22)
+- **TEXT TOOL PERFECTED**: Multiple text box creation, enhanced controls, 24pt Times New Roman default
+- **WORKSPACE TOOLBAR FULLY FUNCTIONAL**: All tools working correctly - select, draw, text, erase, highlighter
+- **EXCALIDRAW NATIVE UI HIDDEN**: Custom toolbar is now the only control interface
+- **INFINITE LOOP FIXED**: Resolved "Maximum update depth exceeded" runtime errors
+- **Working URL**: http://localhost:4001/workspace-test (fully stable with no runtime errors)
 - **Database Connected**: Prisma client generated and authentication working
-- **Next Priority**: Fix workspace toolbar functionality - only pen and highlighter work, text box is most important
-- **Canvas Improvements Needed**: Increase canvas size and redo page layout
+- **READY FOR PRODUCTION**: Core workspace functionality complete and tested
 
 ## Recent Changes
+### 2025-08-22 (Part 2)
+- **TEXT FUNCTIONALITY OVERHAUL**: Completely revamped text tool based on user feedback for optimal user experience.
+- **Multiple Text Box Creation Fix**: Resolved critical issue where first text box worked but subsequent text boxes failed to create:
+  - Root cause: Excalidraw text editing state persisted between creations
+  - Solution: Added `resetTextTool()` function with smart state clearing and tool reinitialization
+  - UI Enhancement: Text button shows "New Text" when already active, provides clear user feedback
+- **Enhanced Text Controls**: Implemented comprehensive text styling system:
+  - Font changed to Times New Roman (classic, readable serif) from system default
+  - Default size upgraded to 24pt (from 20pt) for better readability  
+  - Text size slider now works for both selected text AND default settings
+  - Color picker applies to selected text with immediate visual feedback
+- **Dynamic Auto-Sizing Experiment**: Implemented intelligent font size adjustment based on text box dimensions:
+  - Smart algorithm: area-based sizing with aspect ratio awareness
+  - Wide boxes optimized for banners, tall boxes for emphasis, square boxes balanced
+  - User control: toggle-able feature with visual indicators (🎯 Auto-size)
+- **User Feedback Integration**: Removed auto-sizing feature based on user preference:
+  - Simplified interface: removed auto-size toggle for cleaner toolbar
+  - Consistent behavior: text size stays exactly what user sets
+  - Migration system: gracefully handles users with old preferences
+- **Text Tool Reliability**: Achieved rock-solid text functionality:
+  - Text box outlines always visible during selection
+  - No interference between dynamic sizing and selection rendering
+  - Consistent font rendering across all text creation scenarios
+
+### 2025-08-22 (Part 1)
+- **WORKSPACE TOOLBAR FUNCTIONALITY COMPLETED**: Fixed all remaining toolbar issues and achieved full Excalidraw integration.
+- **Infinite Loop Resolution**: Resolved critical "Maximum update depth exceeded" runtime errors that were preventing page loading by simplifying component state management and removing unstable useEffect dependencies.
+- **Tool Integration Fixed**: All 5 toolbar tools now work correctly on first interaction:
+  - ✅ **Select Tool**: Element selection and manipulation
+  - ✅ **Draw Tool**: Fixed initialization issue - now works immediately on first click
+  - ✅ **Text Tool**: Text box creation working correctly
+  - ✅ **Eraser Tool**: Element removal functionality working
+  - ✅ **Highlighter Tool**: Fixed to provide proper highlighting with 30% opacity (was behaving like regular pen)
+- **Native UI Successfully Hidden**: Implemented comprehensive CSS hiding rules to eliminate all Excalidraw native UI elements while preserving canvas functionality.
+- **Component Architecture**: Unified workspace stores and replaced problematic CanvasShell with ExcalidrawCanvasNative component.
+- **Canvas Improvements**: Increased canvas size to 600px minimum height for better user experience.
+- **Stable Performance**: Page loads consistently at http://localhost:4001/workspace-test with no runtime errors.
+
 ### 2025-08-21
 - **CRITICAL: React 19 Compatibility Crisis Resolved** - Fixed major JSX runtime failures that were completely blocking builds with "Can't resolve 'react/jsx-runtime'" errors across all pages.
 - **Root Cause**: React 19.1.1 incompatible with @excalidraw/excalidraw@0.18.0 and @radix-ui components expecting React 16-18.
@@ -42,9 +82,10 @@
 - Student card layout updated so each student has their own card.
 
 ## Next Planned Work
-- **PRIORITY 1**: Fix workspace toolbar functionality - currently only pen and highlighter work, text box is most important tool to implement
-- **PRIORITY 2**: Increase canvas size and redo page layout for better user experience  
-- Complete toolbar refactor with contextual drawers.
+- **PRIORITY 1**: Increase canvas size and redo page layout for better user experience
+- **PRIORITY 2**: Complete toolbar refactor with contextual drawers
+- **PRIORITY 3**: Add back auto-save functionality with stable debouncing (temporarily removed during infinite loop fix)
+- **PRIORITY 4**: Add page management and scene persistence for multi-page assignments
 - Add floating page number below toolbar.
 - Begin live monitor grid integration.
 - Add rubric scoring and comment bank in grading view.

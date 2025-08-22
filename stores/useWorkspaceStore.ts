@@ -21,6 +21,12 @@ export interface ToolPrefs {
   textItalic: boolean
   textUnderline: boolean
   textAlign: 'left' | 'center' | 'right'
+  textLineSpacing: number
+  textBackgroundColor: string
+  textBackgroundEnabled: boolean
+  textBorderEnabled: boolean
+  textBorderColor: string
+  textBorderThickness: number
   
   // Eraser tool preferences
   eraserSize: number
@@ -81,6 +87,7 @@ export interface WorkspaceActions {
   setActiveTool: (tool: WorkspaceState['activeTool']) => void
   setActiveDrawer: (drawer: string | null) => void
   toggleDrawer: (drawer: string) => void
+  resetTextTool: () => void
   
   // Zoom actions
   setZoom: (zoom: number) => void
@@ -125,15 +132,15 @@ export interface WorkspaceActions {
   applyTextStyleToSelection: (patch: Partial<TextDefaults>, excalidrawAPI?: any) => void
 }
 
-// Default text styling
+// Default text styling - Classic, simple, readable fonts
 const DEFAULT_TEXT_DEFAULTS: TextDefaults = {
-  fontFamily: 'Arial, sans-serif',
-  fontSize: 20,
-  color: '#000000',
+  fontFamily: '"Times New Roman", Georgia, serif',
+  fontSize: 24,
+  color: '#1a1a1a',
   bold: false,
   italic: false,
   underline: false,
-  lineHeight: 1.2,
+  lineHeight: 1.3,
   align: 'left'
 }
 
@@ -150,14 +157,20 @@ const DEFAULT_TOOL_PREFS: ToolPrefs = {
   highlighterColor: '#FACC15', // Yellow
   highlighterOpacity: 0.3,
   
-  // Text defaults
-  textSize: 18,
-  textColor: '#000000',
-  textFamily: 'system-ui, -apple-system, sans-serif',
+  // Text defaults - Classic, readable font at 24pt
+  textSize: 24,
+  textColor: '#1a1a1a',
+  textFamily: '"Times New Roman", Georgia, serif',
   textBold: false,
   textItalic: false,
   textUnderline: false,
   textAlign: 'left',
+  textLineSpacing: 1.0,
+  textBackgroundColor: '#ffffff',
+  textBackgroundEnabled: false,
+  textBorderEnabled: false,
+  textBorderColor: '#000000',
+  textBorderThickness: 2,
   
   // Eraser defaults
   eraserSize: 8,
@@ -169,6 +182,22 @@ export const ZOOM_PRESETS = [0.5, 0.75, 1.0, 1.25, 1.5] as const
 export type ZoomPreset = typeof ZOOM_PRESETS[number]
 
 export type WorkspaceStore = WorkspaceState & WorkspaceActions
+
+// Helper function to migrate tool preferences
+const migrateToolPrefs = (stored: any): ToolPrefs => {
+  const migrated = { ...DEFAULT_TOOL_PREFS }
+  
+  if (stored && typeof stored === 'object') {
+    // Copy over valid preferences, ignore deprecated ones
+    Object.keys(DEFAULT_TOOL_PREFS).forEach(key => {
+      if (stored[key] !== undefined) {
+        (migrated as any)[key] = stored[key]
+      }
+    })
+  }
+  
+  return migrated
+}
 
 export const useWorkspaceStore = create<WorkspaceStore>()(
   devtools(
@@ -304,9 +333,13 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         // Tool preferences actions
         updateToolPref: (key, value) => {
           const { toolPrefs } = get()
-          set({ 
-            toolPrefs: { ...toolPrefs, [key]: value }
-          }, false, 'updateToolPref')
+          // Filter out deprecated preferences
+          const validKeys = Object.keys(DEFAULT_TOOL_PREFS)
+          if (validKeys.includes(key)) {
+            set({ 
+              toolPrefs: { ...toolPrefs, [key]: value }
+            }, false, 'updateToolPref')
+          }
         },
 
         resetToolPrefs: () => set({ toolPrefs: DEFAULT_TOOL_PREFS }, false, 'resetToolPrefs'),
@@ -324,6 +357,35 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         setCanUndo: (canUndo) => set({ canUndo }, false, 'setCanUndo'),
         setCanRedo: (canRedo) => set({ canRedo }, false, 'setCanRedo'),
         setExcalidrawAPI: (excalidrawAPI) => set({ excalidrawAPI }, false, 'setExcalidrawAPI'),
+        
+        // Text tool reset for new text box creation - KEY FIX for multiple text boxes
+        resetTextTool: () => {
+          const { excalidrawAPI } = get()
+          
+          // Clear text editing state
+          set({ 
+            editingTextId: null,
+            selectedElementIds: []
+          }, false, 'resetTextTool')
+          
+          // Force Excalidraw to exit any text editing mode and reinitialize text tool
+          if (excalidrawAPI) {
+            try {
+              // First, temporarily switch to selection tool to clear any text editing state
+              excalidrawAPI.setActiveTool({ type: 'selection' })
+              
+              // Then switch back to text tool to enable new text creation
+              setTimeout(() => {
+                if (excalidrawAPI.setActiveTool) {
+                  excalidrawAPI.setActiveTool({ type: 'text' })
+                  console.log('✅ Text tool reset for new text box creation')
+                }
+              }, 50)
+            } catch (error) {
+              console.error('❌ Text tool reset failed:', error)
+            }
+          }
+        },
         
         // Canvas operations
         undo: () => {
@@ -539,6 +601,14 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           toolPrefs: state.toolPrefs,
           recentColors: state.recentColors,
         }),
+        // Migrate old preferences when loading from storage
+        migrate: (persistedState: any, version: number) => {
+          if (persistedState && persistedState.toolPrefs) {
+            persistedState.toolPrefs = migrateToolPrefs(persistedState.toolPrefs)
+          }
+          return persistedState
+        },
+        version: 1, // Increment when making breaking changes
       }
     ),
     {

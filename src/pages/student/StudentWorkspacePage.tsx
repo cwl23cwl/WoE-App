@@ -1,6 +1,6 @@
 import React from 'react'
 import { TopToolbar } from '../../features/workspace/TopToolbar'
-import { CanvasShell } from '../../features/workspace/CanvasShell'
+import { ExcalidrawCanvasNative } from '../../../components/workspace/ExcalidrawCanvasNative'
 import { PageList } from '../../features/workspace/PageList'
 import { InstructionsPanel } from '../../features/workspace/InstructionsPanel'
 import { HelpCircle, User, MoreVertical } from 'lucide-react'
@@ -78,7 +78,7 @@ export function StudentWorkspacePage() {
           <div className="flex-1 flex flex-col xl:flex-row gap-4 xl:gap-6 min-w-0">
             {/* Canvas Area */}
             <div className="flex-1 min-w-0">
-              <CanvasShell />
+              <ExcalidrawCanvasNative className="rounded-2xl shadow-lg border border-neutral-200" />
             </div>
 
             {/* Instructions Panel - Right Side */}

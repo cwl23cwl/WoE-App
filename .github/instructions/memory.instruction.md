@@ -16,38 +16,47 @@ applyTo: '**'
 - Architecture patterns: Component-based, form validation with Zod, React Hook Form
 - Key requirements: Student management, class scheduling, authentication
 
-## Current Task: Build Default Assignment Page - COMPLETED ✅ 📝
-- Goal: Create interactive assignment workspace for web-first ESL classroom
-- Focus: Teacher creates assignments, monitors student work in real-time, gives quick feedback
-- Features: Drawing canvas (Excalidraw), writing area, real-time collaboration, auto-save
-- User Experience: Clean, intuitive interface for both teachers and students
-- Tech Requirements: Next.js 15.5.0, React 19, TypeScript, Tailwind CSS, Prisma
+## Current Task: Workspace Toolbar Integration - COMPLETED ✅ 📝 [PRODUCTION READY]
+- Goal: Full Excalidraw integration with custom toolbar-only control interface
+- Focus: Hide native Excalidraw UI and ensure all tools work through custom toolbar
+- Features: Tool switching, drawing, text, highlighting, selection, erasing with proper initialization
+- User Experience: Clean workspace with custom toolbar as the only control interface
+- Tech Requirements: Next.js 15.5.0, React 18.3.1, TypeScript, Tailwind CSS, Excalidraw
+- **STATUS**: All toolbar functionality working correctly at http://localhost:4001/workspace-test
 
-### ✅ COMPLETED - All 8 Steps Successfully Implemented & DEBUGGED:
-1. **Workspace Defaults** (/lib/workspace-defaults.ts) - Portrait orientation, tool definitions, sizing
-2. **Zustand Store** (/stores/workspace.ts) - Complete state management with color system
-3. **Layout Components** - WorkspaceLayout, CanvasFrame, responsive design  
-4. **Toolbar** (/components/workspace/WorkspaceTopbar.tsx) - Tools, zoom, navigation, color swatches
-5. **Page Indicator** (/components/workspace/PageIndicator.tsx) - Navigation with dropdown
-6. **Excalidraw Canvas** (/components/workspace/ExcalidrawCanvas.tsx) - Full integration with auto-save **[DEBUGGED & FIXED]**
-7. **Tool Mapping** - Complete tool switching between select/draw/highlight/write/erase **[WORKING]**
-8. **Color Swatches** (/lib/workspace-swatches.ts + /components/workspace/ColorSwatches.tsx) - Brand-aligned colors **[WORKING]**
+### ✅ COMPLETED - Workspace Toolbar Integration Fully Implemented:
+1. **Store Unification** (/stores/useWorkspaceStore.ts) - Unified workspace state management for toolbar/canvas sync
+2. **ExcalidrawCanvasNative** (/components/workspace/ExcalidrawCanvasNative.tsx) - Clean Excalidraw integration with hidden UI
+3. **TopToolbar** (/src/features/workspace/TopToolbar.tsx) - Custom toolbar with all tool controls working
+4. **Tool Synchronization** - All 5 tools working: select, draw, text, erase, highlighter **[PRODUCTION READY]**
+5. **Native UI Hidden** - Complete CSS hiding of all Excalidraw native UI elements **[WORKING]**
+6. **Infinite Loop Fix** - Resolved "Maximum update depth exceeded" runtime errors **[CRITICAL FIX]**
+7. **Tool Initialization** - Draw tool works immediately on first click **[FIXED]**
+8. **Highlighter Functionality** - Proper highlighting with 30% opacity instead of regular pen **[FIXED]**
 
-### 🔧 DEBUGGING SESSION COMPLETED:
-**Issue**: Canvas tools (drawing, text) were not functional - couldn't draw or create text boxes
-**Root Cause**: Excalidraw over-configuration with restrictive UIOptions and excessive props
-**Solution**: Simplified Excalidraw configuration to minimal setup:
-- Removed restrictive `UIOptions.canvasActions` that were blocking tool functionality
-- Removed `zenModeEnabled`, `gridModeEnabled`, `name` props that weren't needed
-- Kept essential props: `excalidrawAPI`, `onChange`, `viewModeEnabled={false}`, `theme="light"`
-- **Result**: All tools now fully functional - drawing, text, eraser, selection all work perfectly
+### 🔧 LATEST DEBUGGING SESSION COMPLETED (2025-08-22):
+**Issue**: "Maximum update depth exceeded" infinite loop runtime errors preventing page load
+**Root Cause**: Complex store state dependencies and unstable useEffect dependencies causing continuous re-renders
+**Solution**: Simplified component architecture and stabilized state management:
+- Removed complex page/scene management causing re-renders
+- Simplified useEffect dependencies to only essential values
+- Separated API initialization from tool/preference synchronization
+- Added proper memoization for initialData and callback functions
+- **Result**: Page loads stably with no runtime errors, all tools functional
 
-### Current Status: ✅ FUNCTIONAL - DEBUGGING TEXT HEIGHT ISSUE
-- **Drawing Tool**: Working - can draw with pen/pencil
-- **Text Tool**: Working - creates text boxes on click
-- **Selection Tool**: Working - can select and manipulate elements  
-- **Eraser Tool**: Working - removes elements
-- **Highlighter Tool**: Working - draws with opacity
+**Previous Issue**: Draw tool not working on first click, highlighter behaving like regular pen
+**Root Cause**: Missing tool initialization and tool-specific property synchronization
+**Solution**: Added proper tool initialization and property mapping:
+- Added initial tool setup in handleExcalidrawAPI with proper timing
+- Implemented tool-specific properties (opacity, color, size) for highlighter functionality
+- **Result**: Draw tool works immediately, highlighter provides proper 30% opacity highlighting
+
+### Current Status: ✅ PRODUCTION READY - ALL TOOLS FUNCTIONAL
+- **Drawing Tool**: ✅ Working - draws immediately on first click (fixed initialization issue)
+- **Text Tool**: ✅ Working - creates text boxes on click with proper sizing
+- **Selection Tool**: ✅ Working - can select and manipulate elements  
+- **Eraser Tool**: ✅ Working - removes elements by clicking
+- **Highlighter Tool**: ✅ Working - provides proper highlighting with 30% opacity (fixed from regular pen behavior)
 
 ## Current Bug Fix Task: Text Box Resize Behavior - CORRECTED & IMPLEMENTED ✅
 - **Issue**: When adjusting text box dimensions, wanted different behavior for edge vs corner dragging
@@ -100,15 +109,15 @@ This fix addresses the core issue: the overlay now gets live element data on eve
 - **Tool Switching**: Working - toolbar buttons properly switch canvas tools
 
 ### Assignment Workspace Features Completed:
-- **Interactive Canvas**: Full Excalidraw integration with proper tool switching
-- **Auto-save System**: Debounced saves every 800ms with visual feedback
-- **Brand-Aligned Color System**: Primary red, secondary blue, accent green with full swatch palettes
-- **Tool Integration**: Proper mapping between toolbar and canvas (select/draw/highlight/write/erase)
-- **Real-time Color Updates**: Selected elements update when colors change
-- **Highlighter Mode**: Special 28% opacity with multiply blend mode support
-- **Responsive Design**: Works across all device sizes
-- **State Persistence**: Zustand store with devtools integration
-- **Test Environment**: Working at http://localhost:4000/test/workspace
+- **Interactive Canvas**: Full Excalidraw integration with completely hidden native UI
+- **Custom Toolbar Control**: Single interface for all tool interactions (select/draw/text/erase/highlighter)
+- **Tool Synchronization**: Immediate tool switching with proper initialization and tool-specific properties
+- **Highlighter Functionality**: Proper 30% opacity highlighting (not regular pen behavior)
+- **Canvas Size**: Optimized 600px minimum height for better user experience
+- **Stable Performance**: No infinite loops or runtime errors, consistent page loading
+- **Responsive Design**: Works across all device sizes with proper touch support
+- **State Management**: Unified workspace store with minimal, stable dependencies
+- **Test Environment**: Production-ready at http://localhost:4001/workspace-test
 
 ### Color System Implementation:
 - **Swatch Library**: /lib/workspace-swatches.ts with brand-aligned color arrays

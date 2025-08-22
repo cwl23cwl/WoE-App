@@ -13,10 +13,29 @@ const nextConfig = {
         asyncWebAssembly: true,
       };
       
-      // Increase chunk loading timeout
+      // Increase chunk loading timeout and add retry logic
       config.output = {
         ...config.output,
-        chunkLoadTimeout: 30000, // 30 seconds instead of default 10s
+        chunkLoadTimeout: 60000, // 60 seconds for large chunks
+        crossOriginLoading: 'anonymous',
+      };
+      
+      // Add specific optimization for Excalidraw chunking
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: {
+          ...config.optimization.splitChunks,
+          cacheGroups: {
+            ...config.optimization.splitChunks?.cacheGroups,
+            excalidraw: {
+              test: /[\\/]node_modules[\\/]@excalidraw[\\/]/,
+              name: 'excalidraw',
+              chunks: 'all',
+              enforce: true,
+              priority: 20,
+            },
+          },
+        },
       };
     }
     

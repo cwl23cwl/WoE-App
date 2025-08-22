@@ -26,10 +26,21 @@
 
 ## CURRENT PROJECT PRIORITIES
 
-### 🚨 IMMEDIATE TASKS
-1. **Fix workspace toolbar functionality** - currently only pen and highlighter work, text box is most important
-2. **Increase canvas size and redo page layout** for better user experience
-3. Complete toolbar refactor with contextual drawers
+### ✅ COMPLETED TASKS
+1. **Fix workspace toolbar functionality** - ✅ RESOLVED: Multiple text box creation now works
+   - Issue: First text box worked, second text box creation failed
+   - Solution: Added `resetTextTool()` function that clears text editing state and reinitializes tool
+   - Implementation: Click "Text" tool while already active shows "New Text" and resets for new creation
+
+2. **Enhance text functionality** - ✅ RESOLVED: Improved text defaults and simplified functionality
+   - Default font: Changed to Times New Roman (classic, readable serif)
+   - Default size: Increased to 24pt for better readability
+   - Removed: Dynamic auto-sizing feature (user feedback)
+   - Text tool: Works consistently with manual size control via slider
+
+### 🚨 IMMEDIATE TASKS  
+1. **Increase canvas size and redo page layout** for better user experience
+2. Complete toolbar refactor with contextual drawers
 
 ---
 
