@@ -43,18 +43,23 @@ export interface WorkspacePage {
 export interface TextDefaults {
   fontFamily: string
   fontSize: number
-  color: string
   bold: boolean
   italic: boolean
   underline: boolean
-  lineHeight: number
+  textColor: string
+  backgroundOn: boolean
+  backgroundColor: string
+  borderOn: boolean
+  borderColor: string
+  borderThickness: number
   align: 'left' | 'center' | 'right'
 }
 
 export interface WorkspaceState {
   // UI State
   activeTool: 'select' | 'draw' | 'highlighter' | 'text' | 'erase' | 'shapes'
-  activeDrawer: string | null
+  activeDrawer: 'none' | 'text' | 'draw' | 'highlight' | null
+  openDrawer: 'none' | 'text' | 'draw' | 'highlight'
   zoom: number
   
   // Page State
@@ -86,6 +91,7 @@ export interface WorkspaceActions {
   // Tool actions
   setActiveTool: (tool: WorkspaceState['activeTool']) => void
   setActiveDrawer: (drawer: string | null) => void
+  setOpenDrawer: (drawer: 'none' | 'text' | 'draw' | 'highlight') => void
   toggleDrawer: (drawer: string) => void
   resetTextTool: () => void
   
@@ -136,11 +142,15 @@ export interface WorkspaceActions {
 const DEFAULT_TEXT_DEFAULTS: TextDefaults = {
   fontFamily: '"Times New Roman", Georgia, serif',
   fontSize: 24,
-  color: '#1a1a1a',
   bold: false,
   italic: false,
   underline: false,
-  lineHeight: 1.3,
+  textColor: '#1a1a1a',
+  backgroundOn: false,
+  backgroundColor: '#ffffff',
+  borderOn: false,
+  borderColor: '#000000',
+  borderThickness: 1,
   align: 'left'
 }
 
@@ -206,6 +216,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         // Initial state
         activeTool: 'draw',
         activeDrawer: null,
+        openDrawer: 'none',
         zoom: 1.0,
         pages: [],
         currentPageIndex: 0,
@@ -222,20 +233,26 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 
         // Tool actions
         setActiveTool: (tool) => {
-          const { activeDrawer } = get()
+          const { openDrawer } = get()
+          
+          // Determine if this tool should open a drawer
+          const shouldOpenDrawer = ['text', 'draw', 'highlighter'].includes(tool)
+          const newDrawerState = shouldOpenDrawer ? tool as 'text' | 'draw' | 'highlight' : 'none'
+          
           set({ 
             activeTool: tool,
-            // Close drawer if switching to a tool without options
-            activeDrawer: ['select'].includes(tool) ? null : activeDrawer
+            openDrawer: newDrawerState
           }, false, 'setActiveTool')
         },
 
         setActiveDrawer: (drawer) => set({ activeDrawer: drawer }, false, 'setActiveDrawer'),
 
+        setOpenDrawer: (drawer) => set({ openDrawer: drawer }, false, 'setOpenDrawer'),
+
         toggleDrawer: (drawer) => {
-          const { activeDrawer } = get()
+          const { openDrawer } = get()
           set({ 
-            activeDrawer: activeDrawer === drawer ? null : drawer 
+            openDrawer: openDrawer === drawer ? 'none' : drawer as 'text' | 'draw' | 'highlight'
           }, false, 'toggleDrawer')
         },
 
@@ -547,7 +564,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
                   
                   // Map patch properties to Excalidraw element properties
                   if (patch.fontSize !== undefined) updatedElement.fontSize = patch.fontSize
-                  if (patch.color !== undefined) updatedElement.strokeColor = patch.color
+                  if (patch.textColor !== undefined) updatedElement.strokeColor = patch.textColor
                   if (patch.fontFamily !== undefined) updatedElement.fontFamily = patch.fontFamily
                   if (patch.bold !== undefined) {
                     updatedElement.fontWeight = patch.bold ? 'bold' : 'normal'
@@ -556,6 +573,32 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
                     updatedElement.fontStyle = patch.italic ? 'italic' : 'normal'
                   }
                   if (patch.align !== undefined) updatedElement.textAlign = patch.align
+                  
+                  // Handle background properties
+                  if (patch.backgroundOn !== undefined) {
+                    updatedElement.backgroundColor = patch.backgroundOn ? (patch.backgroundColor || textDefaults.backgroundColor) : 'transparent'
+                  }
+                  if (patch.backgroundColor !== undefined && textDefaults.backgroundOn) {
+                    updatedElement.backgroundColor = patch.backgroundColor
+                  }
+                  
+                  // Handle border properties - always enforce 1pt thickness
+                  if (patch.borderOn !== undefined || patch.borderColor !== undefined || patch.borderThickness !== undefined) {
+                    // Always set border thickness to 1 (1pt)
+                    updatedElement.strokeWidth = 1
+                    
+                    if (patch.borderOn !== undefined) {
+                      if (patch.borderOn) {
+                        updatedElement.strokeColor = patch.borderColor || textDefaults.borderColor || '#000000'
+                        updatedElement.strokeStyle = 'solid'
+                      } else {
+                        updatedElement.strokeStyle = 'none'
+                      }
+                    }
+                    if (patch.borderColor !== undefined && (patch.borderOn !== false && textDefaults.borderOn)) {
+                      updatedElement.strokeColor = patch.borderColor
+                    }
+                  }
                   
                   // Let Excalidraw handle the layout recalculation naturally.
                   // Forcing it by nulling width/height is unstable.
@@ -729,11 +772,15 @@ export const useDerivedTextStyle = (excalidrawAPI?: any) => {
         derivedStyle: {
           fontFamily: element.fontFamily || textDefaults?.fontFamily || DEFAULT_TEXT_DEFAULTS.fontFamily,
           fontSize: element.fontSize || textDefaults?.fontSize || DEFAULT_TEXT_DEFAULTS.fontSize,
-          color: element.strokeColor || textDefaults?.color || DEFAULT_TEXT_DEFAULTS.color,
+          textColor: element.strokeColor || textDefaults?.textColor || DEFAULT_TEXT_DEFAULTS.textColor,
           bold: element.fontWeight === 'bold',
           italic: element.fontStyle === 'italic',
           underline: false, // Excalidraw doesn't support underline natively
-          lineHeight: textDefaults?.lineHeight || DEFAULT_TEXT_DEFAULTS.lineHeight,
+          backgroundOn: textDefaults?.backgroundOn || DEFAULT_TEXT_DEFAULTS.backgroundOn,
+          backgroundColor: textDefaults?.backgroundColor || DEFAULT_TEXT_DEFAULTS.backgroundColor,
+          borderOn: textDefaults?.borderOn || DEFAULT_TEXT_DEFAULTS.borderOn,
+          borderColor: textDefaults?.borderColor || DEFAULT_TEXT_DEFAULTS.borderColor,
+          borderThickness: textDefaults?.borderThickness || DEFAULT_TEXT_DEFAULTS.borderThickness,
           align: element.textAlign || textDefaults?.align || DEFAULT_TEXT_DEFAULTS.align
         },
         isMixed: false,
@@ -765,11 +812,15 @@ export const useDerivedTextStyle = (excalidrawAPI?: any) => {
       derivedStyle: {
         fontFamily: firstElement.fontFamily || textDefaults?.fontFamily || DEFAULT_TEXT_DEFAULTS.fontFamily,
         fontSize: firstElement.fontSize || textDefaults?.fontSize || DEFAULT_TEXT_DEFAULTS.fontSize,
-        color: firstElement.strokeColor || textDefaults?.color || DEFAULT_TEXT_DEFAULTS.color,
+        textColor: firstElement.strokeColor || textDefaults?.textColor || DEFAULT_TEXT_DEFAULTS.textColor,
         bold: firstElement.fontWeight === 'bold',
         italic: firstElement.fontStyle === 'italic',
         underline: false,
-        lineHeight: textDefaults?.lineHeight || DEFAULT_TEXT_DEFAULTS.lineHeight,
+        backgroundOn: textDefaults?.backgroundOn || DEFAULT_TEXT_DEFAULTS.backgroundOn,
+        backgroundColor: textDefaults?.backgroundColor || DEFAULT_TEXT_DEFAULTS.backgroundColor,
+        borderOn: textDefaults?.borderOn || DEFAULT_TEXT_DEFAULTS.borderOn,
+        borderColor: textDefaults?.borderColor || DEFAULT_TEXT_DEFAULTS.borderColor,
+        borderThickness: textDefaults?.borderThickness || DEFAULT_TEXT_DEFAULTS.borderThickness,
         align: firstElement.textAlign || textDefaults?.align || DEFAULT_TEXT_DEFAULTS.align
       },
       isMixed: false,

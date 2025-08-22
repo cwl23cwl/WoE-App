@@ -38,9 +38,40 @@
    - Removed: Dynamic auto-sizing feature (user feedback)
    - Text tool: Works consistently with manual size control via slider
 
+3. **Fix canvas interaction issue** - ✅ RESOLVED: Canvas fully responsive to custom toolbar
+   - **Problem**: Canvas wasn't responding to toolbar clicks, cursor remained default
+   - **Root Cause**: Dynamic imports (`dynamic()`) broke Excalidraw API integration
+   - **Solution**: Replaced dynamic imports with direct imports: `import { Excalidraw } from '@excalidraw/excalidraw'`
+   - **Additional Fixes**: 
+     - Hidden native Excalidraw UI with comprehensive CSS targeting
+     - Restored tool synchronization between store and canvas
+     - Fixed viewport scaling issues (drawings visible at all zoom levels)
+   - **Current Status**: ✅ All tools work (Draw, Text, Select, Erase, Highlighter), ✅ Undo/Redo functional, ✅ Text reset working
+
+4. **Implement text options drawer** - ✅ RESOLVED: Complete text editing interface
+   - **Three-Zone Layout**: Font controls | Text colors | Background/Border options
+   - **Font Controls**: FontPicker + Size stepper + Bold/Italic/Underline toggles  
+   - **Text Colors**: 8 brand color swatches + recent colors + custom color wheel
+   - **Background/Border**: Popout system with None/preset colors/custom colors
+   - **Fixed Border Thickness**: Standardized to 1pt (no user control needed)
+   - **Popover System**: Professional popovers with proper focus management and animations
+   - **Auto-Apply**: Changes apply immediately to selected text or defaults
+   - **Accessibility**: Full ARIA support, keyboard navigation, focus management
+
+5. **Text drawer UI improvements** - ✅ RESOLVED: Clean, stable, professional interface
+   - **Single-line drawer**: 56px height with optimal spacing
+   - **Portal popovers**: No layout interference, proper z-indexing (900/950)
+   - **Trigger highlighting**: Active state while popovers open
+   - **One-tap selection**: Instant apply + close for preset colors
+   - **Drag-to-commit**: Color wheels update live, close on pointer-up
+   - **Visual stability**: Icons never move, center stays perfectly centered
+
 ### 🚨 IMMEDIATE TASKS  
-1. **Increase canvas size and redo page layout** for better user experience
-2. Complete toolbar refactor with contextual drawers
+1. **Enhanced custom color palette** - Replace basic HTML color input with professional color picker
+   - **Specific Goal**: Improve the 🎨 color wheel experience with better UX, color harmony suggestions, visual design upgrades
+   - **Current State**: Basic HTML `<input type="color">` in text drawer popovers
+   - **Target**: Professional color picker with presets, harmony tools, history, and smooth interactions
+2. **Increase canvas size and redo page layout** for better user experience
 
 ---
 

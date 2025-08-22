@@ -1,0 +1,24 @@
+/* Z-Index Scale Tokens */
+:root {
+  --z-header: 700;
+  --z-floating-menu: 900;
+  --z-tooltip: 950;
+  --z-modal: 1000;
+}
+
+/* Component-specific z-index utilities */
+.z-header {
+  z-index: var(--z-header);
+}
+
+.z-floating-menu {
+  z-index: var(--z-floating-menu);
+}
+
+.z-tooltip {
+  z-index: var(--z-tooltip);
+}
+
+.z-modal {
+  z-index: var(--z-modal);
+}

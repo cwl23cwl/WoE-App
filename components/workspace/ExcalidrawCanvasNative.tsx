@@ -1,28 +1,11 @@
 'use client'
 
 import { useRef, useCallback, useEffect, useState } from 'react'
-import dynamic from 'next/dynamic'
+import { Excalidraw } from '@excalidraw/excalidraw'
 import { useWorkspaceStore } from '@/stores/useWorkspaceStore'
-import { ExcalidrawFallback } from './ExcalidrawFallback'
 
 // Import Excalidraw CSS
 import '@excalidraw/excalidraw/index.css'
-
-// Simple dynamic import - back to basics to avoid hanging
-const Excalidraw = dynamic(
-  () => import('@excalidraw/excalidraw').then(mod => ({ default: mod.Excalidraw })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center h-full bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
-          <p className="text-sm text-gray-600">Loading canvas...</p>
-        </div>
-      </div>
-    ),
-  }
-)
 
 // Text box creation fix: Enhanced component with state tracking and reset functionality
 
@@ -32,13 +15,19 @@ interface ExcalidrawCanvasNativeProps {
 
 export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativeProps) {
   const excalidrawRef = useRef<any>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
   
-  // Minimal store access - only what we absolutely need
-  const { setExcalidrawAPI, activeTool, toolPrefs, editingTextId, selectedElementIds, setEditingTextId, setSelectedElementIds } = useWorkspaceStore()
-  
+  // Store access for tool synchronization
+  const { 
+    setExcalidrawAPI, 
+    activeTool, 
+    toolPrefs, 
+    editingTextId, 
+    selectedElementIds, 
+    setEditingTextId, 
+    setSelectedElementIds 
+  } = useWorkspaceStore()
 
-  // Stable initialData - no dependencies on changing store values
+  // Stable initialData
   const initialData = {
     elements: [],
     appState: {
@@ -58,7 +47,7 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
     }
   }
 
-  // Enhanced change handler with text editing state tracking and dynamic font sizing
+  // Change handler with state tracking
   const handleChange = useCallback((elements: any, appState: any, files: any) => {
     // Track text editing state changes
     const currentEditingTextId = appState.editingElement?.id || null
@@ -67,50 +56,34 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
     // Update store if text editing state has changed
     if (currentEditingTextId !== editingTextId) {
       setEditingTextId(currentEditingTextId)
-      if (currentEditingTextId) {
-        console.log(`📝 Started editing text element: ${currentEditingTextId}`)
-      } else {
-        console.log('📝 Finished editing text element')
-      }
     }
     
     // Update store if selection has changed
     if (JSON.stringify(currentSelectedIds) !== JSON.stringify(selectedElementIds)) {
       setSelectedElementIds(currentSelectedIds)
-      console.log(`🎯 Selection changed: ${currentSelectedIds.length} elements selected`)
     }
-    
-    
-    // Log overall changes for debugging
-    console.log('Canvas changed - elements:', elements.length)
   }, [editingTextId, selectedElementIds, setEditingTextId, setSelectedElementIds])
 
-  // API handler with initial tool setup
+  // API handler with tool setup
   const handleExcalidrawAPI = useCallback((api: any) => {
-    console.log('🎯 Native Excalidraw API initialized:', !!api)
     excalidrawRef.current = api
     
-    // Store the API reference and initialize tool
     if (api) {
       setExcalidrawAPI(api)
       
-      // Set initial tool after a short delay to ensure API is ready
+      // Set initial tool after delay
       setTimeout(() => {
         try {
           const excalidrawTool = mapToolToExcalidraw(activeTool)
           api.setActiveTool({ type: excalidrawTool })
-          console.log(`✅ Initial tool set: ${activeTool} -> ${excalidrawTool}`)
-          
         } catch (error) {
           console.error('❌ Initial tool setup failed:', error)
         }
       }, 100)
-      
-      console.log('🎨 UI Hidden - Custom toolbar is now the only control interface')
     }
   }, [setExcalidrawAPI, activeTool])
 
-  // Simple tool synchronization - only when tool changes
+  // Tool synchronization
   useEffect(() => {
     if (excalidrawRef.current && activeTool) {
       try {
@@ -122,15 +95,12 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
     }
   }, [activeTool])
 
-  // Enhanced text tool state monitoring for better reset handling
+  // Text tool reset handling
   useEffect(() => {
     if (excalidrawRef.current && activeTool === 'text') {
-      // If we have no editing text and no selection, ensure we're ready for new text creation
       if (!editingTextId && selectedElementIds.length === 0) {
         try {
-          // Ensure text tool is properly activated for new text creation
           excalidrawRef.current.setActiveTool({ type: 'text' })
-          console.log('📝 Text tool refreshed for new text box creation')
         } catch (error) {
           console.error('❌ Text tool refresh failed:', error)
         }
@@ -138,34 +108,28 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
     }
   }, [activeTool, editingTextId, selectedElementIds])
 
-  // Handle tool-specific properties (like highlighter opacity)
+  // Tool properties handling
   useEffect(() => {
     if (excalidrawRef.current && activeTool) {
       try {
         const updates: any = {}
         
         if (activeTool === 'highlighter') {
-          // Set highlighter properties
           updates.currentItemStrokeColor = toolPrefs.highlighterColor || '#FACC15'
           updates.currentItemOpacity = (toolPrefs.highlighterOpacity || 0.3) * 100
           updates.currentItemStrokeWidth = toolPrefs.highlighterSize || 12
         } else if (activeTool === 'draw') {
-          // Reset to normal drawing properties
           updates.currentItemStrokeColor = toolPrefs.drawColor || '#000000'
           updates.currentItemOpacity = 100
           updates.currentItemStrokeWidth = toolPrefs.drawSize || 4
         } else if (activeTool === 'text') {
-          // Set text properties with enhanced font handling
           updates.currentItemStrokeColor = toolPrefs.textColor || '#000000'
           updates.currentItemFontSize = toolPrefs.textSize || 24
           updates.currentItemFontFamily = toolPrefs.textFamily || '"Times New Roman", Georgia, serif'
         }
         
         if (Object.keys(updates).length > 0) {
-          excalidrawRef.current.updateScene({ 
-            appState: updates 
-          })
-          console.log(`🎨 Tool properties updated for ${activeTool}`)
+          excalidrawRef.current.updateScene({ appState: updates })
         }
       } catch (error) {
         console.error('❌ Tool properties update failed:', error)
@@ -173,33 +137,55 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
     }
   }, [activeTool, toolPrefs.highlighterColor, toolPrefs.highlighterOpacity, toolPrefs.highlighterSize, toolPrefs.drawColor, toolPrefs.drawSize, toolPrefs.textColor, toolPrefs.textSize, toolPrefs.textFamily])
 
-
-
-  // Error boundary fallback - use basic canvas fallback
-  if (loadError) {
-    console.warn('Excalidraw failed to load, using fallback canvas:', loadError)
-    return <ExcalidrawFallback className={className} />
-  }
-
   return (
     <div 
-      className={`w-full h-full ${className} excalidraw-container`} 
+      className={`w-full h-full ${className}`} 
       style={{ minHeight: '600px' }}
     >
-{/* Temporarily commented out CSS to test if it's interfering
-      <style jsx global>{`
-        .excalidraw-container .excalidraw,
-        .excalidraw-container .excalidraw__canvas {
-          pointer-events: auto !important;
-        }
-      `}</style>
-      */}
-      
       <Excalidraw
         excalidrawAPI={handleExcalidrawAPI}
         onChange={handleChange}
+        initialData={initialData}
         viewModeEnabled={false}
+        UIOptions={{
+          canvasActions: {
+            saveToActiveFile: false,
+            loadScene: false,
+            export: false,
+            toggleTheme: false,
+            clearCanvas: false
+          },
+          tools: {
+            image: false
+          }
+        }}
+        renderTopRightUI={() => null}
+        renderFooter={() => null}
+        renderSidebar={() => null}
       />
+      <style jsx global>{`
+        .excalidraw .layer-ui__wrapper > * {
+          display: none !important;
+        }
+        .excalidraw .layer-ui__wrapper {
+          pointer-events: none !important;
+        }
+        .excalidraw .Island {
+          display: none !important;
+        }
+        .excalidraw [data-testid*="toolbar"] {
+          display: none !important;
+        }
+        .excalidraw [data-testid="tools-panel"] {
+          display: none !important;
+        }
+        .excalidraw .App-toolbar {
+          display: none !important;
+        }
+        .excalidraw .App-bottom-bar {
+          display: none !important;
+        }
+      `}</style>
     </div>
   )
 }

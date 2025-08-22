@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { 
   MousePointer, 
   Pencil, 
@@ -10,28 +10,34 @@ import {
   Trash2
 } from 'lucide-react'
 import { useWorkspaceStore } from '@/stores/useWorkspaceStore'
-import { ToolDrawer } from './ToolDrawer'
-import { TextToolDrawer } from './TextToolDrawer'
 
 type Tool = 'select' | 'draw' | 'text' | 'erase' | 'highlighter'
 
 export function TopToolbar() {
   const { 
     activeTool, 
-    setActiveTool, 
+    setActiveTool,
+    openDrawer,
+    toggleDrawer,
     resetTextTool,
-    activeDrawer,
-    setActiveDrawer,
     canUndo,
     canRedo,
     undo,
     redo,
     clearCanvas,
     toolPrefs,
-    updateToolPref,
-    excalidrawAPI
+    updateToolPref
   } = useWorkspaceStore()
 
+  // Close any floating menus when tools change
+  useEffect(() => {
+    const closeMenus = () => {
+      // Dispatch custom event to close all floating menus
+      window.dispatchEvent(new CustomEvent('closeFloatingMenus'))
+    }
+    
+    closeMenus()
+  }, [activeTool, openDrawer])
 
   const toolButtons = [
     { id: 'select' as Tool, icon: MousePointer, label: 'Select', color: 'text-neutral-800' },
@@ -42,35 +48,33 @@ export function TopToolbar() {
   ]
 
   const handleToolClick = (toolId: Tool) => {
-    // Handle special text tool reset behavior
-    if (toolId === 'text' && activeTool === 'text') {
+    // Handle special text tool behavior: if clicking text while text is active and drawer is open
+    if (toolId === 'text' && activeTool === 'text' && openDrawer === 'text') {
       resetTextTool()
       return
     }
     
-    // Set the active tool
-    setActiveTool(toolId)
-    
-    // For tools with drawers, open the drawer when tool is selected
-    // For tools without drawers, close any open drawer
+    // Handle drawer toggle logic for tools with options
     if (['text', 'draw', 'highlighter'].includes(toolId)) {
-      // Open this tool's drawer
-      setActiveDrawer(toolId)
+      if (activeTool === toolId) {
+        // Same tool clicked - toggle drawer
+        toggleDrawer(toolId)
+      } else {
+        // Different tool clicked - set active tool (drawer will open automatically)
+        setActiveTool(toolId)
+      }
     } else {
-      // Close any open drawer for tools without drawers (select, erase)
-      setActiveDrawer(null)
+      // Tools without drawers (select, erase) - just set active tool
+      setActiveTool(toolId)
     }
   }
 
-
-
   return (
-    <div className="w-full">
-      <nav 
-        className="custom-toolbar flex items-center justify-between px-2 sm:px-4 py-3 bg-white border border-neutral-200 rounded-xl shadow-sm"
-        role="toolbar"
-        aria-label="Drawing tools"
-      >
+    <nav 
+      className="flex items-center justify-between px-2 sm:px-4 py-3 bg-white border border-neutral-200 rounded-xl shadow-sm"
+      role="toolbar"
+      aria-label="Drawing tools"
+    >
       {/* Left Section: Undo/Redo */}
       <div className="flex items-center gap-1 sm:gap-2" role="group" aria-label="History">
         <button 
@@ -132,12 +136,6 @@ export function TopToolbar() {
           <span className="hidden sm:inline">Clear</span>
         </button>
       </div>
-      </nav>
-
-      {/* Tool Drawer */}
-      <ToolDrawer isOpen={activeDrawer === 'text'}>
-        <TextToolDrawer />
-      </ToolDrawer>
-    </div>
+    </nav>
   )
 }

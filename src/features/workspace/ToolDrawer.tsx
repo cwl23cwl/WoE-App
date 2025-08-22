@@ -1,25 +1,34 @@
 import React from 'react'
+import { useWorkspaceStore } from '@/stores/useWorkspaceStore'
+import { TextDrawerContent } from './TextDrawerContent'
 
-interface ToolDrawerProps {
-  isOpen: boolean
-  children: React.ReactNode
-  className?: string
-}
-
-export function ToolDrawer({ isOpen, children, className = '' }: ToolDrawerProps) {
+export function ToolDrawer() {
+  const { openDrawer } = useWorkspaceStore()
+  
+  const isOpen = openDrawer !== 'none'
+  
   return (
-    <div
+    <div 
       className={`
-        overflow-hidden transition-all duration-200 ease-out
-        ${isOpen ? 'max-h-16 opacity-100' : 'max-h-0 opacity-0'}
-        ${className}
+        w-full 
+        bg-white 
+        border-l border-r border-b border-neutral-200 
+        shadow-sm 
+        transition-all duration-150 ease-out
+        overflow-visible
+        ${isOpen 
+          ? 'h-14 opacity-100' 
+          : 'h-0 opacity-0'
+        }
       `}
       style={{
-        transform: isOpen ? 'translateY(0)' : 'translateY(-100%)',
+        borderRadius: '0 0 12px 12px',
       }}
     >
-      <div className="h-16 px-4 py-3 bg-neutral-50 border-b border-neutral-200 flex items-center gap-4">
-        {children}
+      <div className="h-14 flex items-center px-4 overflow-visible">
+        {openDrawer === 'text' && <TextDrawerContent />}
+        {openDrawer === 'draw' && <div className="text-sm text-neutral-600">Draw options coming soon...</div>}
+        {openDrawer === 'highlight' && <div className="text-sm text-neutral-600">Highlight options coming soon...</div>}
       </div>
     </div>
   )

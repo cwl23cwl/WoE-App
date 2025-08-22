@@ -2,8 +2,8 @@
 
 import React from 'react'
 import { TopToolbar } from '../../../src/features/workspace/TopToolbar'
+import { ToolDrawer } from '../../../src/features/workspace/ToolDrawer'
 import { CanvasShell } from '../../../src/features/workspace/CanvasShell'
-import { PageList } from '../../../src/features/workspace/PageList'
 import { InstructionsPanel } from '../../../src/features/workspace/InstructionsPanel'
 import { HelpCircle, User, MoreVertical } from 'lucide-react'
 
@@ -70,30 +70,25 @@ export default function TestStudentWorkspacePage() {
         </div>
       </header>
 
-      {/* Toolbar */}
-      <div className="px-4 sm:px-8 mb-4">
-        <TopToolbar />
+      {/* Sticky Header Container - Toolbar + Drawer */}
+      <div className="sticky top-0 z-header bg-background px-4 sm:px-8 mb-4 overflow-visible">
+        <div className="flex flex-col overflow-visible">
+          <TopToolbar />
+          <ToolDrawer />
+        </div>
       </div>
 
       {/* Main Content Area */}
       <div className="flex-1 px-4 sm:px-8 pb-8">
-        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
-          {/* Page List - Left Sidebar */}
-          <div className="w-full lg:w-64 shrink-0">
-            <PageList />
+        <div className="flex flex-col xl:flex-row gap-4 xl:gap-6">
+          {/* Canvas Area */}
+          <div className="flex-1 min-w-0">
+            <CanvasShell />
           </div>
 
-          {/* Center: Canvas and Instructions */}
-          <div className="flex-1 flex flex-col xl:flex-row gap-4 xl:gap-6 min-w-0">
-            {/* Canvas Area */}
-            <div className="flex-1 min-w-0">
-              <CanvasShell />
-            </div>
-
-            {/* Instructions Panel - Right Side */}
-            <div className="w-full xl:w-80 shrink-0">
-              <InstructionsPanel />
-            </div>
+          {/* Instructions Panel - Right Side */}
+          <div className="w-full xl:w-80 shrink-0">
+            <InstructionsPanel />
           </div>
         </div>
       </div>

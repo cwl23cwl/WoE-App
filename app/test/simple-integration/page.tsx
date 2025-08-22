@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { TopToolbar } from '../../../src/features/workspace/TopToolbar'
+import { ToolDrawer } from '../../../src/features/workspace/ToolDrawer'
 import { SimpleCanvasShell } from '../../../src/features/workspace/SimpleCanvasShell'
 
 export default function SimpleIntegrationTestPage() {
@@ -20,9 +21,12 @@ export default function SimpleIntegrationTestPage() {
         </div>
       </header>
 
-      {/* Toolbar */}
-      <div className="px-8 mb-4">
-        <TopToolbar />
+      {/* Sticky Header Container - Toolbar + Drawer */}
+      <div className="sticky top-0 z-header bg-background px-8 mb-4 overflow-visible">
+        <div className="flex flex-col overflow-visible">
+          <TopToolbar />
+          <ToolDrawer />
+        </div>
       </div>
 
       {/* Canvas */}
