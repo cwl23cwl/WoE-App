@@ -136,6 +136,7 @@ export interface WorkspaceActions {
   setEditingTextId: (id: string | null) => void
   updateTextDefaults: (patch: Partial<TextDefaults>) => void
   applyTextStyleToSelection: (patch: Partial<TextDefaults>, excalidrawAPI?: any) => void
+  createTextWithPlaceholder: (x?: number, y?: number) => void
 }
 
 // Default text styling - Classic, simple, readable fonts
@@ -508,7 +509,18 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         },
         
         // Selection and text editing actions
-        setSelectedElementIds: (selectedElementIds) => set({ selectedElementIds }, false, 'setSelectedElementIds'),
+        setSelectedElementIds: (selectedElementIds) => {
+          // Ensure we always store an array
+          const safeIds = Array.isArray(selectedElementIds) ? selectedElementIds : []
+          
+          // Prevent infinite loops by checking if the value actually changed
+          const currentIds = get().selectedElementIds
+          if (JSON.stringify(currentIds) === JSON.stringify(safeIds)) {
+            return // No change, don't trigger update
+          }
+          
+          set({ selectedElementIds: safeIds }, false, 'setSelectedElementIds')
+        },
         setEditingTextId: (editingTextId) => set({ editingTextId }, false, 'setEditingTextId'),
         
         updateTextDefaults: (patch) => {
@@ -521,6 +533,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         applyTextStyleToSelection: (patch, excalidrawAPI) => {
           const { selectedElementIds, editingTextId, textDefaults } = get()
           
+          // Ensure selectedElementIds is always an array (safety fix)
+          const safeSelectedIds = Array.isArray(selectedElementIds) ? selectedElementIds : []
+          
           if (!excalidrawAPI) {
             // No API available, just update defaults
             const newDefaults = { ...textDefaults, ...patch }
@@ -531,7 +546,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           try {
             const elements = excalidrawAPI.getSceneElements()
             const selectedTextElements = elements.filter((el: any) => 
-              selectedElementIds.includes(el.id) && el.type === 'text'
+              safeSelectedIds.includes(el.id) && el.type === 'text'
             )
             
             // If no elements selected but we're editing a text element, target that element
@@ -548,11 +563,10 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             
             console.log('🎨 Applying text style:', {
               patch,
-              selectedTextCount: selectedTextElements.length,
-              editingTextId,
               targetElementsCount: targetElements.length,
               isEditingTarget,
-              selectedIds: selectedElementIds
+              hasAPI: !!excalidrawAPI,
+              elementCount: elements.length
             })
             
             if (targetElements.length > 0) {
@@ -564,7 +578,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
                   
                   // Map patch properties to Excalidraw element properties
                   if (patch.fontSize !== undefined) updatedElement.fontSize = patch.fontSize
-                  if (patch.textColor !== undefined) updatedElement.strokeColor = patch.textColor
                   if (patch.fontFamily !== undefined) updatedElement.fontFamily = patch.fontFamily
                   if (patch.bold !== undefined) {
                     updatedElement.fontWeight = patch.bold ? 'bold' : 'normal'
@@ -582,23 +595,39 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
                     updatedElement.backgroundColor = patch.backgroundColor
                   }
                   
-                  // Handle border properties - always enforce 1pt thickness
-                  if (patch.borderOn !== undefined || patch.borderColor !== undefined || patch.borderThickness !== undefined) {
-                    // Always set border thickness to 1 (1pt)
+                  // Handle border and text color together (both use strokeColor in Excalidraw)
+                  // Determine the final border and text color state
+                  const finalBorderOn = patch.borderOn !== undefined ? patch.borderOn : textDefaults.borderOn
+                  const finalTextColor = patch.textColor !== undefined ? patch.textColor : textDefaults.textColor
+                  const finalBorderColor = patch.borderColor !== undefined ? patch.borderColor : textDefaults.borderColor
+                  
+                  console.log('🎨 Text color mapping:', {
+                    elementId: updatedElement.id,
+                    finalBorderOn,
+                    finalTextColor,
+                    finalBorderColor,
+                    originalStrokeColor: el.strokeColor,
+                    originalStrokeWidth: el.strokeWidth
+                  })
+                  
+                  if (finalBorderOn) {
+                    // Border is on - strokeColor becomes border color, text uses default styling
+                    updatedElement.strokeColor = finalBorderColor
                     updatedElement.strokeWidth = 1
-                    
-                    if (patch.borderOn !== undefined) {
-                      if (patch.borderOn) {
-                        updatedElement.strokeColor = patch.borderColor || textDefaults.borderColor || '#000000'
-                        updatedElement.strokeStyle = 'solid'
-                      } else {
-                        updatedElement.strokeStyle = 'none'
-                      }
-                    }
-                    if (patch.borderColor !== undefined && (patch.borderOn !== false && textDefaults.borderOn)) {
-                      updatedElement.strokeColor = patch.borderColor
-                    }
+                    updatedElement.strokeStyle = 'solid'
+                  } else {
+                    // No border - strokeColor becomes text color
+                    updatedElement.strokeColor = finalTextColor
+                    updatedElement.strokeWidth = 0
+                    updatedElement.strokeStyle = 'solid'
                   }
+                  
+                  console.log('🎨 Updated element properties:', {
+                    elementId: updatedElement.id,
+                    newStrokeColor: updatedElement.strokeColor,
+                    newStrokeWidth: updatedElement.strokeWidth,
+                    newStrokeStyle: updatedElement.strokeStyle
+                  })
                   
                   // Let Excalidraw handle the layout recalculation naturally.
                   // Forcing it by nulling width/height is unstable.
@@ -606,6 +635,12 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
                   return updatedElement
                 }
                 return el
+              })
+              
+              console.log('🔄 Updating Excalidraw scene with modified elements:', {
+                totalElements: updatedElements.length,
+                modifiedElements: updatedElements.filter(el => targetElementIds.includes(el.id)).length,
+                targetElementIds
               })
               
               excalidrawAPI.updateScene({ 
@@ -634,6 +669,99 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             }
           } catch (error) {
             console.error('Error applying text style:', error)
+          }
+        },
+
+        createTextWithPlaceholder: (x = 300, y = 200) => {
+          console.log('🚀 createTextWithPlaceholder called with coordinates:', { x, y })
+          const { excalidrawAPI, textDefaults, setActiveTool, setEditingTextId } = get()
+          
+          if (!excalidrawAPI) {
+            console.warn('❌ Cannot create text: Excalidraw API not available')
+            return
+          }
+          
+          console.log('✅ Excalidraw API available, creating text element...')
+
+          try {
+            // Generate a unique ID for the new text element
+            const newTextId = `text_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+            
+            // Create a new text element with "Write!" placeholder
+            const newTextElement = {
+              id: newTextId,
+              type: 'text',
+              x: x,
+              y: y,
+              width: 100, // Will be recalculated by Excalidraw
+              height: 25, // Will be recalculated by Excalidraw
+              angle: 0,
+              color: textDefaults.textColor, // Text color using color property
+              strokeColor: textDefaults.borderOn ? textDefaults.borderColor : textDefaults.textColor, // Border color or fallback to text color
+              backgroundColor: textDefaults.backgroundOn ? textDefaults.backgroundColor : 'transparent',
+              fillStyle: 'solid',
+              strokeWidth: textDefaults.borderOn ? textDefaults.borderThickness : 0,
+              strokeStyle: 'solid',
+              roughness: 1,
+              opacity: 100,
+              text: 'Write!',
+              fontSize: textDefaults.fontSize,
+              fontFamily: textDefaults.fontFamily,
+              textAlign: textDefaults.align,
+              verticalAlign: 'top',
+              baseline: 0,
+              containerId: null,
+              originalText: 'Write!',
+              groupIds: [],
+              frameId: null,
+              roundness: null,
+              seed: Math.floor(Math.random() * 2147483647),
+              versionNonce: Math.floor(Math.random() * 2147483647),
+              isDeleted: false,
+              boundElements: null,
+              updated: Date.now(),
+              link: null,
+              locked: false
+            }
+
+            // Get current elements and add the new text element
+            const currentElements = excalidrawAPI.getSceneElements()
+            const updatedElements = [...currentElements, newTextElement]
+
+            // Update the scene
+            excalidrawAPI.updateScene({
+              elements: updatedElements,
+              commitToHistory: true
+            })
+
+            // Switch to text tool and start editing the new element
+            setActiveTool('text')
+            
+            // Start editing the new text element after a small delay
+            setTimeout(() => {
+              if (excalidrawAPI) {
+                try {
+                  // Set the text tool active and start editing
+                  excalidrawAPI.setActiveTool({ type: 'text' })
+                  
+                  // Enter editing mode for the new text element
+                  excalidrawAPI.updateScene({
+                    appState: {
+                      editingElement: newTextElement,
+                      selectedElementIds: { [newTextId]: true }
+                    }
+                  })
+                  
+                  setEditingTextId(newTextId)
+                  console.log('✅ Created text element with "Write!" placeholder and started editing')
+                } catch (error) {
+                  console.error('❌ Failed to start editing new text element:', error)
+                }
+              }
+            }, 100)
+
+          } catch (error) {
+            console.error('❌ Error creating text with placeholder:', error)
           }
         },
       }),
@@ -730,6 +858,9 @@ export const useTextSelection = () => {
 export const useDerivedTextStyle = (excalidrawAPI?: any) => {
   const { selectedElementIds, editingTextId, textDefaults } = useWorkspaceStore()
   
+  // Ensure selectedElementIds is always an array (safety fix)
+  const safeSelectedIds = Array.isArray(selectedElementIds) ? selectedElementIds : []
+  
   if (!excalidrawAPI) {
     return {
       derivedStyle: textDefaults || DEFAULT_TEXT_DEFAULTS,
@@ -741,7 +872,7 @@ export const useDerivedTextStyle = (excalidrawAPI?: any) => {
   try {
     const elements = excalidrawAPI.getSceneElements()
     const selectedTextElements = elements.filter((el: any) => 
-      selectedElementIds.includes(el.id) && el.type === 'text'
+      safeSelectedIds.includes(el.id) && el.type === 'text'
     )
     
     // If no elements selected but we're editing a text element, use that for display
@@ -772,7 +903,7 @@ export const useDerivedTextStyle = (excalidrawAPI?: any) => {
         derivedStyle: {
           fontFamily: element.fontFamily || textDefaults?.fontFamily || DEFAULT_TEXT_DEFAULTS.fontFamily,
           fontSize: element.fontSize || textDefaults?.fontSize || DEFAULT_TEXT_DEFAULTS.fontSize,
-          textColor: element.strokeColor || textDefaults?.textColor || DEFAULT_TEXT_DEFAULTS.textColor,
+          textColor: element.color || textDefaults?.textColor || DEFAULT_TEXT_DEFAULTS.textColor,
           bold: element.fontWeight === 'bold',
           italic: element.fontStyle === 'italic',
           underline: false, // Excalidraw doesn't support underline natively

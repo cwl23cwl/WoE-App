@@ -39,7 +39,7 @@ export default function StudentWorkspace({ submissionId = 'demo-submission' }: S
   // Ensure derivedStyle always has valid values
   const safeStyle = {
     fontSize: derivedStyle?.fontSize ?? 20,
-    color: derivedStyle?.color ?? '#000000',
+    color: derivedStyle?.textColor ?? '#000000',
     bold: derivedStyle?.bold ?? false,
     italic: derivedStyle?.italic ?? false,
     underline: derivedStyle?.underline ?? false,
@@ -264,7 +264,7 @@ export default function StudentWorkspace({ submissionId = 'demo-submission' }: S
 
   const handleColorChange = useCallback((color: string) => {
     setTextColor(color);
-    applyTextStyleToSelection({ color }, excalidrawAPI);
+    applyTextStyleToSelection({ textColor: color }, excalidrawAPI);
   }, [applyTextStyleToSelection, excalidrawAPI]);
 
   const handleExcalidrawAPIReady = useCallback((api: any) => {

@@ -14,6 +14,7 @@ import { useWorkspaceStore } from '@/stores/useWorkspaceStore'
 import { FontPicker } from '@/components/ui/font-picker'
 import { FloatingMenu } from '@/components/ui/floating-menu'
 import { Popout } from '@/components/ui/popout'
+import { ProfessionalColorPicker } from '@/components/ui/professional-color-picker'
 
 export function TextDrawerContent() {
   const { 
@@ -32,6 +33,7 @@ export function TextDrawerContent() {
   const [showBorderPopout, setShowBorderPopout] = useState(false)
   const [showBackgroundColorWheel, setShowBackgroundColorWheel] = useState(false)
   const [showBorderColorWheel, setShowBorderColorWheel] = useState(false)
+  const [capturedSelection, setCapturedSelection] = useState<string[]>([])
   
   const colorPickerButtonRef = useRef<HTMLButtonElement>(null)
   const backgroundIconRef = useRef<HTMLButtonElement>(null)
@@ -109,7 +111,175 @@ export function TextDrawerContent() {
     }
     
     updateTextDefaults(patch)
-    applyTextStyleToSelection(patch, excalidrawAPI)
+    
+    if (!excalidrawAPI) {
+      console.log('📝 No Excalidraw API - only updating defaults')
+      return
+    }
+    
+    try {
+      const elements = excalidrawAPI.getSceneElements()
+      const appState = excalidrawAPI.getAppState()
+      const currentSelection = appState.selectedElementIds || []
+      const editingTextId = appState.editingElement?.id
+      
+      // Find text elements to target (prioritize current selection, then editing element, then captured selection)
+      let targetTextElements: any[] = []
+      let targetSource = 'none'
+      
+      // 1. Check if we have currently selected text elements
+      // Ensure currentSelection is an array
+      const selectionArray = Array.isArray(currentSelection) ? currentSelection : Object.keys(currentSelection)
+      if (selectionArray.length > 0) {
+        const selectedTextElements = elements.filter((el: any) => 
+          selectionArray.includes(el.id) && el.type === 'text'
+        )
+        if (selectedTextElements.length > 0) {
+          targetTextElements = selectedTextElements
+          targetSource = 'current-selection'
+        }
+      }
+      
+      // 2. If no current selection, check if we're editing a text element
+      if (targetTextElements.length === 0 && editingTextId) {
+        const editingElement = elements.find((el: any) => el.id === editingTextId && el.type === 'text')
+        if (editingElement) {
+          targetTextElements = [editingElement]
+          targetSource = 'editing-element'
+        }
+      }
+      
+      // 3. If no current targets, use captured selection
+      if (targetTextElements.length === 0 && capturedSelection.length > 0) {
+        const capturedTextElements = elements.filter((el: any) => 
+          capturedSelection.includes(el.id) && el.type === 'text'
+        )
+        if (capturedTextElements.length > 0) {
+          targetTextElements = capturedTextElements
+          targetSource = 'captured-selection'
+        }
+      }
+      
+      // 4. If still no targets, provide user choice for targeting strategy
+      if (targetTextElements.length === 0) {
+        const textElements = elements.filter((el: any) => el.type === 'text')
+        if (textElements.length > 0) {
+          if (textElements.length === 1) {
+            // Only one text element - target it
+            targetTextElements = textElements
+            targetSource = 'single-text'
+          } else {
+            // Multiple text elements - target the most recently created one
+            // Sort by creation time (Excalidraw elements have versionNonce that increases over time)
+            const sortedTextElements = textElements.sort((a: any, b: any) => {
+              return (b.versionNonce || 0) - (a.versionNonce || 0)
+            })
+            
+            targetTextElements = [sortedTextElements[0]]
+            targetSource = 'most-recent-text'
+          }
+        }
+      }
+      
+      // Debug: Show all text elements for troubleshooting
+      const allTextElements = elements.filter((el: any) => el.type === 'text')
+      const textElementsInfo = allTextElements.map((el: any) => ({
+        id: el.id.substring(0, 8),
+        versionNonce: el.versionNonce,
+        text: el.text?.substring(0, 20) || 'empty',
+        strokeColor: el.strokeColor,
+        strokeWidth: el.strokeWidth
+      }))
+      
+      console.log('🎯 Color targeting strategy:', {
+        patch,
+        targetSource,
+        targetCount: targetTextElements.length,
+        currentSelection,
+        editingTextId,
+        capturedSelection,
+        totalElements: elements.length
+      })
+      
+      console.log('📝 Available text elements:', textElementsInfo)
+      console.log('🎯 Target elements:', targetTextElements.map(el => el.id.substring(0, 8)))
+      
+      if (targetTextElements.length > 0) {
+        // Apply to target text elements
+        const targetElementIds = targetTextElements.map((el: any) => el.id)
+        const updatedElements = elements.map((el: any) => {
+          if (targetElementIds.includes(el.id) && el.type === 'text') {
+            const updatedElement = { ...el }
+            
+            // Apply all supported style properties
+            if (patch.fontSize !== undefined) updatedElement.fontSize = patch.fontSize
+            if (patch.fontFamily !== undefined) updatedElement.fontFamily = patch.fontFamily
+            if (patch.bold !== undefined) {
+              updatedElement.fontWeight = patch.bold ? 'bold' : 'normal'
+            }
+            if (patch.italic !== undefined) {
+              updatedElement.fontStyle = patch.italic ? 'italic' : 'normal'
+            }
+            if (patch.align !== undefined) updatedElement.textAlign = patch.align
+            
+            // Handle background
+            if (patch.backgroundOn !== undefined) {
+              updatedElement.backgroundColor = patch.backgroundOn ? 
+                (patch.backgroundColor || textDefaults.backgroundColor) : 'transparent'
+            }
+            if (patch.backgroundColor !== undefined && (patch.backgroundOn !== false)) {
+              updatedElement.backgroundColor = patch.backgroundColor
+            }
+            
+            // Handle text color and border independently
+            const finalBorderOn = patch.borderOn !== undefined ? patch.borderOn : textDefaults.borderOn
+            const finalTextColor = patch.textColor !== undefined ? patch.textColor : textDefaults.textColor
+            const finalBorderColor = patch.borderColor !== undefined ? patch.borderColor : textDefaults.borderColor
+            
+            // Always set text color using color property (for fillStyle)
+            updatedElement.color = finalTextColor
+            
+            // Handle border independently  
+            if (finalBorderOn) {
+              // Border is on - use strokeColor for border
+              updatedElement.strokeColor = finalBorderColor
+              updatedElement.strokeWidth = 1
+              updatedElement.strokeStyle = 'solid'
+            } else {
+              // No border - disable stroke
+              updatedElement.strokeWidth = 0
+              updatedElement.strokeStyle = 'solid'
+            }
+            
+            console.log('🎨 Applied style to element:', {
+              elementId: updatedElement.id,
+              textColor: updatedElement.color,
+              borderColor: updatedElement.strokeColor,
+              borderWidth: updatedElement.strokeWidth,
+              borderOn: finalBorderOn,
+              targetSource
+            })
+            
+            return updatedElement
+          }
+          return el
+        })
+        
+        excalidrawAPI.updateScene({ 
+          elements: updatedElements,
+          commitToHistory: targetSource !== 'editing-element' // Don't commit to history when editing
+        })
+        
+        console.log(`✅ Applied style to ${targetTextElements.length} text elements via ${targetSource}`)
+      } else {
+        // No text elements found to target - just update defaults
+        console.log('📝 No text elements to target - updated defaults only')
+      }
+    } catch (error) {
+      console.error('❌ Error in handleStyleChange:', error)
+      // Fallback to the original method
+      applyTextStyleToSelection(patch, excalidrawAPI)
+    }
     
     // Add color to recent colors if it's a custom color (not in presets)
     if (patch.textColor && !colorPresets.includes(patch.textColor)) {
@@ -216,6 +386,36 @@ export function TextDrawerContent() {
             <button
               key={color}
               onClick={() => {
+                // Capture fresh selection when color swatch is clicked
+                if (excalidrawAPI) {
+                  try {
+                    const elements = excalidrawAPI.getSceneElements()
+                    const appState = excalidrawAPI.getAppState()
+                    const currentSelection = appState.selectedElementIds || []
+                    const editingTextId = appState.editingElement?.id
+                    
+                    // Ensure currentSelection is an array
+                    const selectionArray = Array.isArray(currentSelection) ? currentSelection : Object.keys(currentSelection)
+                    
+                    const selectedTextIds = elements
+                      .filter((el: any) => selectionArray.includes(el.id) && el.type === 'text')
+                      .map((el: any) => el.id)
+                    
+                    let freshCapturedIds = selectedTextIds
+                    if (freshCapturedIds.length === 0 && editingTextId) {
+                      const editingElement = elements.find((el: any) => el.id === editingTextId && el.type === 'text')
+                      if (editingElement) {
+                        freshCapturedIds = [editingTextId]
+                      }
+                    }
+                    
+                    setCapturedSelection(freshCapturedIds)
+                    console.log('🎨 Fresh selection captured for color:', { color, freshCapturedIds })
+                  } catch (error) {
+                    console.error('Failed to capture fresh selection:', error)
+                  }
+                }
+                
                 handleStyleChange({ textColor: color })
                 if (showColorPicker) setShowColorPicker(false)
               }}
@@ -233,7 +433,39 @@ export function TextDrawerContent() {
           {recentColors.slice(0, 3).map((color, index) => (
             <button
               key={`recent-${index}`}
-              onClick={() => handleStyleChange({ textColor: color })}
+              onClick={() => {
+                // Capture fresh selection when recent color is clicked
+                if (excalidrawAPI) {
+                  try {
+                    const elements = excalidrawAPI.getSceneElements()
+                    const appState = excalidrawAPI.getAppState()
+                    const currentSelection = appState.selectedElementIds || []
+                    const editingTextId = appState.editingElement?.id
+                    
+                    // Ensure currentSelection is an array
+                    const selectionArray = Array.isArray(currentSelection) ? currentSelection : Object.keys(currentSelection)
+                    
+                    const selectedTextIds = elements
+                      .filter((el: any) => selectionArray.includes(el.id) && el.type === 'text')
+                      .map((el: any) => el.id)
+                    
+                    let freshCapturedIds = selectedTextIds
+                    if (freshCapturedIds.length === 0 && editingTextId) {
+                      const editingElement = elements.find((el: any) => el.id === editingTextId && el.type === 'text')
+                      if (editingElement) {
+                        freshCapturedIds = [editingTextId]
+                      }
+                    }
+                    
+                    setCapturedSelection(freshCapturedIds)
+                    console.log('🎨 Fresh selection captured for recent color:', { color, freshCapturedIds })
+                  } catch (error) {
+                    console.error('Failed to capture fresh selection for recent color:', error)
+                  }
+                }
+                
+                handleStyleChange({ textColor: color })
+              }}
               className={`w-8 h-8 rounded border-2 transition-all focus:outline-none focus:ring-2 focus:ring-brand-primary hover:scale-105 ${
                 textDefaults.textColor === color 
                   ? 'border-brand-primary ring-2 ring-brand-primary/20' 
@@ -250,6 +482,46 @@ export function TextDrawerContent() {
               ref={colorPickerButtonRef}
               onClick={() => {
                 closeAllPopouts()
+                
+                // Capture current selection before opening color picker
+                if (!showColorPicker && excalidrawAPI) {
+                  try {
+                    const elements = excalidrawAPI.getSceneElements()
+                    const appState = excalidrawAPI.getAppState()
+                    const currentSelection = appState.selectedElementIds || []
+                    const editingTextId = appState.editingElement?.id
+                    
+                    // Capture both selected and editing text elements
+                    // Ensure currentSelection is an array
+                    const selectionArray = Array.isArray(currentSelection) ? currentSelection : Object.keys(currentSelection)
+                    
+                    const selectedTextIds = elements
+                      .filter((el: any) => selectionArray.includes(el.id) && el.type === 'text')
+                      .map((el: any) => el.id)
+                    
+                    // If no selected text but we're editing text, capture that
+                    let capturedIds = selectedTextIds
+                    if (capturedIds.length === 0 && editingTextId) {
+                      const editingElement = elements.find((el: any) => el.id === editingTextId && el.type === 'text')
+                      if (editingElement) {
+                        capturedIds = [editingTextId]
+                      }
+                    }
+                    
+                    setCapturedSelection(capturedIds)
+                    console.log('📋 Captured text selection:', {
+                      selectedTextIds,
+                      editingTextId,
+                      finalCaptured: capturedIds
+                    })
+                  } catch (error) {
+                    console.error('Failed to capture selection:', error)
+                    setCapturedSelection([])
+                  }
+                } else {
+                  setCapturedSelection([])
+                }
+                
                 setShowColorPicker(!showColorPicker)
               }}
               className={`p-2 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-support-teal ${
@@ -257,7 +529,7 @@ export function TextDrawerContent() {
                   ? 'bg-brand-primary text-white ring-2 ring-brand-primary/30' 
                   : 'hover:bg-neutral-100 text-neutral-600 hover:text-neutral-700'
               }`}
-              title="Custom color picker"
+              title="Professional color picker"
               aria-expanded={showColorPicker}
               aria-haspopup="dialog"
             >
@@ -266,44 +538,26 @@ export function TextDrawerContent() {
 
             <FloatingMenu
               isOpen={showColorPicker}
-              onClose={() => setShowColorPicker(false)}
+              onClose={() => {
+                setShowColorPicker(false)
+                setCapturedSelection([]) // Clear captured selection when closing
+              }}
               trigger={colorPickerButtonRef}
-              className="p-3"
+              className="p-0"
             >
-              <div className="flex flex-col gap-2">
-                <input
-                  type="color"
-                  value={textDefaults.textColor}
-                  onChange={(e) => {
-                    handleStyleChange({ textColor: e.target.value })
-                  }}
-                  onMouseUp={() => {
-                    setShowColorPicker(false)
-                    colorPickerButtonRef.current?.focus()
-                  }}
-                  onTouchEnd={() => {
-                    setShowColorPicker(false)
-                    colorPickerButtonRef.current?.focus()
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      setShowColorPicker(false)
-                      colorPickerButtonRef.current?.focus()
-                    }
-                  }}
-                  className="w-12 h-8 border border-neutral-300 rounded cursor-pointer"
-                  aria-label="Custom color picker"
-                />
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  className="w-24 h-2 bg-neutral-200 rounded-lg appearance-none cursor-pointer"
-                  title="Brightness"
-                  aria-label="Color brightness"
-                />
-                <span className="text-xs text-neutral-600 text-center">Custom</span>
-              </div>
+              <ProfessionalColorPicker
+                value={textDefaults.textColor}
+                onChange={(color) => {
+                  handleStyleChange({ textColor: color })
+                }}
+                onClose={() => {
+                  setShowColorPicker(false)
+                  setCapturedSelection([]) // Clear captured selection
+                  colorPickerButtonRef.current?.focus()
+                }}
+                recentColors={recentColors}
+                onAddRecentColor={addRecentColor}
+              />
             </FloatingMenu>
           </div>
         </div>
@@ -519,41 +773,22 @@ export function TextDrawerContent() {
           isOpen={showBackgroundColorWheel}
           onClose={() => setShowBackgroundColorWheel(false)}
           anchorEl={backgroundColorWheelRef.current}
-          className="p-3"
+          className="p-0"
           zIndex={950}
         >
-          <div className="flex flex-col gap-2">
-            <input
-              type="color"
-              value={textDefaults.backgroundColor}
-              onChange={(e) => {
-                // Apply live while dragging
-                handleStyleChange({ backgroundOn: true, backgroundColor: e.target.value })
-              }}
-              onMouseUp={() => {
-                // Close on pointer-up (drag complete)
-                setShowBackgroundColorWheel(false)
-                setShowBackgroundPopout(false)
-                backgroundIconRef.current?.focus()
-              }}
-              onTouchEnd={() => {
-                // Close on touch end
-                setShowBackgroundColorWheel(false)
-                setShowBackgroundPopout(false)
-                backgroundIconRef.current?.focus()
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  setShowBackgroundColorWheel(false)
-                  setShowBackgroundPopout(false)
-                  backgroundIconRef.current?.focus()
-                }
-              }}
-              className="w-12 h-8 border border-neutral-300 rounded cursor-pointer"
-              aria-label="Custom background color picker"
-            />
-            <span className="text-xs text-neutral-600 text-center">Custom</span>
-          </div>
+          <ProfessionalColorPicker
+            value={textDefaults.backgroundColor}
+            onChange={(color) => {
+              handleStyleChange({ backgroundOn: true, backgroundColor: color })
+            }}
+            onClose={() => {
+              setShowBackgroundColorWheel(false)
+              setShowBackgroundPopout(false)
+              backgroundIconRef.current?.focus()
+            }}
+            recentColors={recentColors}
+            onAddRecentColor={addRecentColor}
+          />
         </Popout>
 
         {/* Border Color Wheel Sub-Popout */}
@@ -561,41 +796,22 @@ export function TextDrawerContent() {
           isOpen={showBorderColorWheel}
           onClose={() => setShowBorderColorWheel(false)}
           anchorEl={borderColorWheelRef.current}
-          className="p-3"
+          className="p-0"
           zIndex={950}
         >
-          <div className="flex flex-col gap-2">
-            <input
-              type="color"
-              value={textDefaults.borderColor}
-              onChange={(e) => {
-                // Apply live while dragging
-                handleStyleChange({ borderOn: true, borderColor: e.target.value })
-              }}
-              onMouseUp={() => {
-                // Close on pointer-up (drag complete)
-                setShowBorderColorWheel(false)
-                setShowBorderPopout(false)
-                borderIconRef.current?.focus()
-              }}
-              onTouchEnd={() => {
-                // Close on touch end
-                setShowBorderColorWheel(false)
-                setShowBorderPopout(false)
-                borderIconRef.current?.focus()
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  setShowBorderColorWheel(false)
-                  setShowBorderPopout(false)
-                  borderIconRef.current?.focus()
-                }
-              }}
-              className="w-12 h-8 border border-neutral-300 rounded cursor-pointer"
-              aria-label="Custom border color picker"
-            />
-            <span className="text-xs text-neutral-600 text-center">Custom</span>
-          </div>
+          <ProfessionalColorPicker
+            value={textDefaults.borderColor}
+            onChange={(color) => {
+              handleStyleChange({ borderOn: true, borderColor: color })
+            }}
+            onClose={() => {
+              setShowBorderColorWheel(false)
+              setShowBorderPopout(false)
+              borderIconRef.current?.focus()
+            }}
+            recentColors={recentColors}
+            onAddRecentColor={addRecentColor}
+          />
         </Popout>
 
       </div>

@@ -1,11 +1,26 @@
 'use client'
 
 import { useRef, useCallback, useEffect, useState } from 'react'
-import { Excalidraw } from '@excalidraw/excalidraw'
+import dynamic from 'next/dynamic'
 import { useWorkspaceStore } from '@/stores/useWorkspaceStore'
 
-// Import Excalidraw CSS
-import '@excalidraw/excalidraw/index.css'
+// Dynamic import of Excalidraw to prevent SSR issues
+const Excalidraw = dynamic(
+  async () => {
+    const module = await import('@excalidraw/excalidraw')
+    // Import CSS dynamically as well
+    await import('@excalidraw/excalidraw/index.css')
+    return module.Excalidraw
+  },
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full flex items-center justify-center bg-white">
+        <div className="text-gray-500">Loading canvas...</div>
+      </div>
+    ),
+  }
+)
 
 // Enhanced component with zoom control and browser zoom passthrough
 // Prevents internal canvas zoom while allowing browser/page zoom
@@ -64,8 +79,15 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
     }
   }
 
+  // Track previous elements to detect new text creation
+  const prevElementsRef = useRef<any[]>([])
+  
   // Change handler with state tracking and zoom lock
   const handleChange = useCallback((elements: any, appState: any, files: any) => {
+    // Minimal logging for debugging
+    if (elements.length !== prevElementsRef.current.length) {
+      console.log('📊 Elements:', elements.length, 'Text:', elements.filter(el => el.type === 'text').length)
+    }
     // ZOOM CONTROL: Lock canvas at 100% zoom
     const currentZoom = appState.zoom?.value || 1.0
     if (Math.abs(currentZoom - LOCKED_ZOOM) > 0.01) {
@@ -109,7 +131,11 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
     if (JSON.stringify(currentSelectedIds) !== JSON.stringify(selectedElementIds)) {
       setSelectedElementIds(currentSelectedIds)
     }
-  }, [editingTextId, selectedElementIds, activeTool, setEditingTextId, setSelectedElementIds, setActiveTool])
+    
+    
+    // Update the previous elements reference
+    prevElementsRef.current = elements
+  }, [editingTextId, activeTool, setEditingTextId, setSelectedElementIds, setActiveTool, selectedElementIds])
 
   // API handler with tool setup and zoom initialization
   const handleExcalidrawAPI = useCallback((api: any) => {
@@ -151,13 +177,8 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
         return
       }
       
-      // Block vertical scrolling, allow horizontal scrolling
-      if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
-        console.log('🚫 Blocking vertical scroll on canvas')
-        event.preventDefault()
-        event.stopPropagation()
-        return
-      }
+      // Allow all scrolling - let page scroll naturally
+      // Note: Removed vertical scroll blocking to allow page scrolling
       
       // Allow horizontal scroll - let Excalidraw handle it for panning
       console.log('✅ Allowing horizontal scroll for canvas panning')
@@ -233,6 +254,7 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
     
     // Also listen for window resize as backup
     const handleWindowResize = () => {
+      if (typeof window === 'undefined') return
       clearTimeout(resizeTimeout)
       resizeTimeout = setTimeout(() => {
         console.log('🪟 Window resized, refreshing canvas')
@@ -246,17 +268,23 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
       }, 200)
     }
     
-    window.addEventListener('resize', handleWindowResize)
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleWindowResize)
+    }
     
     return () => {
       clearTimeout(resizeTimeout)
       resizeObserver.disconnect()
-      window.removeEventListener('resize', handleWindowResize)
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', handleWindowResize)
+      }
     }
   }, [])
   
   // BREAKPOINT RESPONSIVENESS: Handle xl breakpoint changes (sidebar position)
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    
     const mediaQuery = window.matchMedia('(min-width: 1280px)') // xl breakpoint
     
     const handleBreakpointChange = (e: MediaQueryListEvent) => {

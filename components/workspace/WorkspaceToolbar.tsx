@@ -36,7 +36,8 @@ export function WorkspaceToolbar() {
     updateToolPref,
     undo,
     redo,
-    clearCanvas
+    clearCanvas,
+    createTextWithPlaceholder
   } = useWorkspaceStore()
 
   const tools = [
@@ -155,21 +156,39 @@ export function WorkspaceToolbar() {
         )}
         
         {activeTool === 'text' && (
-          <label className="flex items-center gap-1 text-sm">
-            Size:{' '}
-            <input
-              type="range"
-              min="8"
-              max="72"
-              value={toolPrefs.textSize}
-              onChange={(e) => updateToolPref('textSize', Number(e.target.value))}
-              className="w-20 accent-primary"
-              aria-label={`Text size: ${toolPrefs.textSize} pixels`}
-            />
-            <span className="text-xs text-muted-foreground min-w-[2ch]">
-              {toolPrefs.textSize}
-            </span>
-          </label>
+          <>
+            <label className="flex items-center gap-1 text-sm">
+              Size:{' '}
+              <input
+                type="range"
+                min="8"
+                max="72"
+                value={toolPrefs.textSize}
+                onChange={(e) => updateToolPref('textSize', Number(e.target.value))}
+                className="w-20 accent-primary"
+                aria-label={`Text size: ${toolPrefs.textSize} pixels`}
+              />
+              <span className="text-xs text-muted-foreground min-w-[2ch]">
+                {toolPrefs.textSize}
+              </span>
+            </label>
+            
+            {/* Quick Text Creation Button */}
+            <button
+              onClick={() => createTextWithPlaceholder()}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-sm"
+              title="Create text box with placeholder"
+            >
+              <Type className="w-3.5 h-3.5" />
+              <span className="font-medium">Write!</span>
+            </button>
+            
+            {/* Helpful Tip */}
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/50 rounded text-xs text-muted-foreground border border-border/50">
+              <span>💡</span>
+              <span>Click on canvas and start typing, or use "Write!" button</span>
+            </div>
+          </>
         )}
       </div>
 
