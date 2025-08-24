@@ -38,6 +38,7 @@ export interface WorkspacePage {
   scene: any
   orientation: 'portrait' | 'landscape'
   thumbnail?: string
+  pdfBackground?: string // URL or base64 data for PDF background
 }
 
 export interface TextDefaults {
@@ -61,6 +62,9 @@ export interface WorkspaceState {
   activeDrawer: 'none' | 'text' | 'draw' | 'highlight' | null
   openDrawer: 'none' | 'text' | 'draw' | 'highlight'
   zoom: number
+  
+  // Page display settings
+  showMarginGuides: boolean
   
   // Page State
   pages: WorkspacePage[]
@@ -94,6 +98,9 @@ export interface WorkspaceActions {
   setOpenDrawer: (drawer: 'none' | 'text' | 'draw' | 'highlight') => void
   toggleDrawer: (drawer: string) => void
   resetTextTool: () => void
+  
+  // Page display actions
+  toggleMarginGuides: () => void
   
   // Zoom actions
   setZoom: (zoom: number) => void
@@ -219,6 +226,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         activeDrawer: null,
         openDrawer: 'none',
         zoom: 1.0,
+        showMarginGuides: true,
         pages: [],
         currentPageIndex: 0,
         saveState: 'saved',
@@ -255,6 +263,12 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           set({ 
             openDrawer: openDrawer === drawer ? 'none' : drawer as 'text' | 'draw' | 'highlight'
           }, false, 'toggleDrawer')
+        },
+
+        // Page display actions
+        toggleMarginGuides: () => {
+          const { showMarginGuides } = get()
+          set({ showMarginGuides: !showMarginGuides }, false, 'toggleMarginGuides')
         },
 
         // Zoom actions

@@ -1,3 +1,5 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typedRoutes: true,
@@ -38,6 +40,15 @@ const nextConfig = {
         },
       };
     }
+    
+    // Add aliases for forked packages
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@excalidraw/common': path.resolve(__dirname, '../woe-excalidraw/packages/common/src'),
+      '@excalidraw/element': path.resolve(__dirname, '../woe-excalidraw/packages/element/src'),
+      '@excalidraw/math': path.resolve(__dirname, '../woe-excalidraw/packages/math/src'),
+      '@excalidraw/utils': path.resolve(__dirname, '../woe-excalidraw/packages/utils/src'),
+    };
     
     // Add fallback for missing modules
     config.resolve.fallback = {

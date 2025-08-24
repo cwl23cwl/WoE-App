@@ -48,4 +48,4 @@ Thumbs.db
 nul
 
 # Jest snapshots
-__snapshots__/
+__snapshots__/yarn.lock

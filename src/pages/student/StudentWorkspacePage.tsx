@@ -1,7 +1,7 @@
 import React from 'react'
 import { TopToolbar } from '../../features/workspace/TopToolbar'
 import { ToolDrawer } from '../../features/workspace/ToolDrawer'
-import { ExcalidrawCanvasNative } from '../../../components/workspace/ExcalidrawCanvasNative'
+import { ExcalidrawCanvasSimple as ExcalidrawCanvasNative } from '../../../components/workspace/ExcalidrawCanvasSimple'
 import { InstructionsPanel } from '../../features/workspace/InstructionsPanel'
 import { HelpCircle, User, MoreVertical } from 'lucide-react'
 
@@ -73,8 +73,17 @@ export function StudentWorkspacePage() {
       <div className="flex-1 px-4 sm:px-8 pb-8">
         <div className="flex flex-col xl:flex-row gap-4 xl:gap-6">
           {/* Canvas Area */}
-          <div className="flex-1 min-w-0">
-            <ExcalidrawCanvasNative className="rounded-2xl shadow-lg border border-neutral-200" />
+          <div 
+            className="flex-1 min-w-0" 
+            style={{ 
+              minHeight: '400px', 
+              height: '60vh', 
+              maxHeight: '800px',
+              width: '100%',
+              maxWidth: '1400px'
+            }}
+          >
+            <ExcalidrawCanvasNative className="rounded-2xl shadow-lg border border-neutral-200 w-full h-full" />
           </div>
 
           {/* Instructions Panel - Right Side */}

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(yarn --version)",
+      "Bash(yarn install)",
+      "Bash(yarn rm:build:*)",
+      "Bash(grep:*)",
+      "Bash(yarn build:*)",
+      "Bash(npm run dev:*)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\charl\\Desktop\\woe-excalidraw"
+    ]
+  },
+  "outputStyle": "extensive"
+}

@@ -1,39 +1,90 @@
 'use client'
 
 import { useRef, useCallback, useEffect, useState } from 'react'
-import dynamic from 'next/dynamic'
 import { useWorkspaceStore } from '@/stores/useWorkspaceStore'
+import React from 'react'
 
-// Dynamic import of Excalidraw to prevent SSR issues
-const Excalidraw = dynamic(
-  async () => {
-    const module = await import('@excalidraw/excalidraw')
-    // Import CSS dynamically as well
-    await import('@excalidraw/excalidraw/index.css')
-    return module.Excalidraw
-  },
-  {
-    ssr: false,
-    loading: () => (
-      <div className="w-full h-full flex items-center justify-center bg-white">
-        <div className="text-gray-500">Loading canvas...</div>
-      </div>
-    ),
+// Simple Error Boundary for debugging provider issues
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props)
+    this.state = { hasError: false }
   }
-)
 
-// Enhanced component with zoom control and browser zoom passthrough
-// Prevents internal canvas zoom while allowing browser/page zoom
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('ExcalidrawCanvas Error Boundary caught:', error, errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex items-center justify-center h-full bg-red-50 border-2 border-red-200">
+          <div className="text-center p-6">
+            <div className="text-red-600 text-lg font-semibold mb-2">
+              ⚠️ Canvas Loading Error
+            </div>
+            <div className="text-red-500 text-sm mb-3">
+              {this.state.error?.message || 'Unknown error occurred'}
+            </div>
+            <div className="text-red-400 text-xs">
+              Check console for details. Your WoeExcalidraw fork may need additional setup.
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    return this.props.children
+  }
+}
+
+// Type definitions for WoeExcalidraw integration
+type WoeToolType = 'select' | 'draw' | 'text' | 'erase' | 'highlighter'
+
+interface WoeExcalidrawAPI {
+  updateScene: (updates: any) => void
+  getSceneElements: () => any[]
+  setActiveTool: (tool: any) => void
+}
+
+interface NonDeletedExcalidrawElement {
+  id: string
+  type: string
+  [key: string]: any
+}
+
+interface AppState {
+  editingTextElement?: { id: string } | null
+  selectedElementIds: string[]
+  currentItemStrokeColor?: string
+  currentItemOpacity?: number
+  currentItemStrokeWidth?: number
+  currentItemFontSize?: number
+  currentItemFontFamily?: string
+  [key: string]: any
+}
+
+interface BinaryFiles {
+  [key: string]: any
+}
 
 interface ExcalidrawCanvasNativeProps {
   className?: string
 }
 
 export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativeProps) {
-  const excalidrawRef = useRef<any>(null)
-  const canvasWrapperRef = useRef<HTMLDivElement>(null)
-  
-  // Store access for tool synchronization
+  const [WoeExcalidraw, setWoeExcalidraw] = useState<any>(null)
+  const [isClient, setIsClient] = useState(false)
+  const woeExcalidrawRef = useRef<any>(null)
+
+  // Store access for tool synchronization - MUST be before early returns
   const { 
     setExcalidrawAPI, 
     activeTool, 
@@ -45,10 +96,299 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
     setSelectedElementIds 
   } = useWorkspaceStore()
 
-  // Zoom control constants
-  const LOCKED_ZOOM = 1.0 // Keep canvas at 100% zoom
+  // ALL useCallback hooks must be defined before early returns
+  // Change handler - dramatically simplified
+  const handleChange = useCallback((
+    elements: readonly NonDeletedExcalidrawElement[], 
+    appState: AppState, 
+    files: BinaryFiles
+  ) => {
+    // Track text editing state changes
+    const currentEditingTextId = appState.editingTextElement?.id || null
+    const currentSelectedIds = appState.selectedElementIds || []
+    
+    // Smart tool sync: Keep text tool active when working with text
+    const isEditingText = currentEditingTextId !== null
+    const hasSelectedText = currentSelectedIds.length > 0 && elements.some((el: any) => 
+      currentSelectedIds.includes(el.id) && el.type === 'text'
+    )
+    
+    // Auto-switch to text tool when working with text
+    if ((isEditingText || hasSelectedText) && activeTool !== 'text') {
+      console.log('🔄 Auto-switching to text tool')
+      setActiveTool('text')
+    }
+    
+    // Update store states
+    if (currentEditingTextId !== editingTextId) {
+      setEditingTextId(currentEditingTextId)
+    }
+    
+    if (JSON.stringify(currentSelectedIds) !== JSON.stringify(selectedElementIds)) {
+      setSelectedElementIds(currentSelectedIds)
+    }
+  }, [editingTextId, activeTool, setEditingTextId, setSelectedElementIds, setActiveTool, selectedElementIds])
 
-  // Stable initialData
+  // API handler - set up store integration
+  const handleWoeExcalidrawAPI = useCallback((api: WoeExcalidrawAPI | null) => {
+    woeExcalidrawRef.current = api
+    
+    if (api) {
+      setExcalidrawAPI(api as any) // Bridge to existing store interface
+      console.log('✅ WoeExcalidraw API initialized')
+    }
+  }, [setExcalidrawAPI])
+
+  // Tool change handler from WoE system
+  const handleToolChange = useCallback((woeTool: WoeToolType) => {
+    console.log('🔧 WoE tool changed to:', woeTool)
+    // Update store if needed (usually the store drives this)
+    if (activeTool !== woeTool) {
+      setActiveTool(woeTool)
+    }
+  }, [activeTool, setActiveTool])
+
+  // Apply tool properties when tools/prefs change
+  const applyToolProperties = useCallback(() => {
+    if (!woeExcalidrawRef.current) return
+    
+    try {
+      const updates: Partial<AppState> = {}
+      
+      if (activeTool === 'highlighter') {
+        updates.currentItemStrokeColor = toolPrefs.highlighterColor || '#FACC15'
+        updates.currentItemOpacity = (toolPrefs.highlighterOpacity || 0.3) * 100
+        updates.currentItemStrokeWidth = toolPrefs.highlighterSize || 12
+      } else if (activeTool === 'draw') {
+        updates.currentItemStrokeColor = toolPrefs.drawColor || '#000000'
+        updates.currentItemOpacity = 100
+        updates.currentItemStrokeWidth = toolPrefs.drawSize || 4
+      } else if (activeTool === 'text') {
+        updates.currentItemStrokeColor = toolPrefs.textColor || '#000000'
+        updates.currentItemFontSize = toolPrefs.textSize || 24
+        updates.currentItemFontFamily = toolPrefs.textFamily || '"Times New Roman", Georgia, serif'
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        woeExcalidrawRef.current.updateScene({ appState: updates as AppState })
+      }
+    } catch (error) {
+      console.error('❌ Tool properties update failed:', error)
+    }
+  }, [activeTool, toolPrefs])
+
+  // Ensure component only renders on client
+  useEffect(() => {
+    setIsClient(true)
+    
+    // Dynamically import WoeExcalidraw to avoid SSR issues
+    const loadWoeExcalidraw = async () => {
+      try {
+        const module = await import('@woe/excalidraw')
+        console.log('🔍 WoeExcalidraw module loaded:', module)
+        console.log('📋 Available exports:', Object.keys(module))
+        
+        // Let's also check for nested properties and descriptors
+        const allExports = Object.getOwnPropertyNames(module)
+        console.log('🔎 All property names:', allExports)
+        
+        // Check every export more thoroughly for any provider-related functionality
+        console.log('🔬 Detailed export analysis:')
+        for (const exportName of allExports) {
+          if (exportName.startsWith('_') || exportName === '__esModule') continue
+          
+          try {
+            const exportValue = (module as any)[exportName]
+            const exportType = typeof exportValue
+            console.log(`  📤 ${exportName}: ${exportType}`)
+            
+            // Check if this export has provider-related properties
+            if (exportType === 'object' || exportType === 'function') {
+              const props = Object.getOwnPropertyNames(exportValue)
+              const suspiciousProps = props.filter(prop => 
+                prop.toLowerCase().includes('provider') ||
+                prop.toLowerCase().includes('isolation') ||
+                prop.toLowerCase().includes('scope') ||
+                prop.toLowerCase().includes('context')
+              )
+              
+              if (suspiciousProps.length > 0) {
+                console.log(`    � ${exportName} has suspicious props:`, suspiciousProps)
+              }
+            }
+          } catch (error) {
+            console.log(`    ❌ Could not analyze ${exportName}:`, (error as Error).message)
+          }
+        }
+        
+        // Let's also check what the Excalidraw export contains
+        if (module.WoeExcalidraw || module.Excalidraw) {
+          const excalidrawComponent = module.WoeExcalidraw || module.Excalidraw
+          console.log('🧩 Excalidraw component type:', typeof excalidrawComponent)
+          console.log('🧩 Excalidraw component props:', Object.getOwnPropertyNames(excalidrawComponent))
+          
+          // Check if the component itself has provider properties
+          if ((excalidrawComponent as any).Provider) {
+            console.log('✅ Found Provider on Excalidraw component!')
+            setWoeExcalidraw(() => excalidrawComponent)
+            return
+          }
+        }
+        
+        // The error mentions jotai-scope and createIsolation
+        // Let's check for jotai-scope related exports more thoroughly
+        const possibleProviders = [
+          'createIsolation',      // Direct jotai-scope function
+          'JotaiScopeProvider',   // Possible custom wrapper
+          'ScopeProvider',        // Generic scope provider
+          'WoeProvider',          // Custom WoE provider
+          'ExcalidrawProvider',   // Standard provider
+          'Provider',             // Generic provider
+          'IsolationProvider',    // Isolation-specific provider
+          'createScope',          // Alternative scope creation
+          'isolationScope',       // Pre-created scope
+          'defaultScope'          // Default scope
+        ]
+        
+        let foundProvider = null
+        let providerName = ''
+        
+        for (const name of possibleProviders) {
+          if ((module as any)[name]) {
+            console.log(`✅ Found ${name} - will use as provider`)
+            foundProvider = (module as any)[name]
+            providerName = name
+            break
+          }
+        }
+        
+        // If no obvious provider found, let's check if we can create an isolation context
+        if (!foundProvider) {
+          console.log('🔍 No obvious provider found, checking for createIsolation pattern...')
+        
+        // CRITICAL DISCOVERY: WoeExcalidraw fork has EditorJotaiProvider in editor-jotai.ts
+        // Let's try to access it directly from the fork
+        try {
+          // Try to access the EditorJotaiProvider from WoeExcalidraw's editor-jotai module
+          const editorJotaiPath = '@woe/excalidraw/editor-jotai'
+          // @ts-ignore - Dynamic import path
+          const editorJotai = await import(editorJotaiPath)
+          console.log('📦 EditorJotai module loaded from WoeExcalidraw')
+          console.log('🔧 EditorJotai exports:', Object.keys(editorJotai))
+          
+          if (editorJotai.EditorJotaiProvider) {
+            console.log('🎯 Found EditorJotaiProvider from WoeExcalidraw!')
+            setWoeExcalidraw(() => ({ 
+              Component: module.WoeExcalidraw || module.Excalidraw,
+              Provider: editorJotai.EditorJotaiProvider 
+            }))
+            return
+          }
+        } catch (editorJotaiError) {
+          console.log('⚠️ Could not access EditorJotaiProvider:', (editorJotaiError as Error).message)
+        }
+          
+          // CRITICAL: We must use the same jotai-scope instance that WoeExcalidraw uses!
+          // The error shows WoeExcalidraw uses: ../woe-excalidraw/node_modules/jotai-scope
+          // We need to access that exact instance, not our local one
+          
+          try {
+            // First try to access jotai-scope through the WoeExcalidraw module path
+            // This ensures we use the SAME jotai-scope instance
+            const jotaiScopePath = '@woe/excalidraw/node_modules/jotai-scope'
+            // @ts-ignore - Dynamic import path
+            const jotaiScope = await import(jotaiScopePath)
+            console.log('📦 jotai-scope imported from WoeExcalidraw path (CRITICAL - same instance)')
+            console.log('🔧 WoeExcalidraw jotai-scope exports:', Object.keys(jotaiScope))
+            
+            if (jotaiScope.createIsolation) {
+              console.log('🎯 Creating isolation context using WoeExcalidraw jotai-scope instance')
+              const isolation = jotaiScope.createIsolation()
+              console.log('✅ Isolation created from WoeExcalidraw jotai-scope:', isolation)
+              
+              setWoeExcalidraw(() => ({ 
+                Component: module.WoeExcalidraw || module.Excalidraw,
+                Provider: isolation.Provider 
+              }))
+              return
+            }
+          } catch (woeJotaiError) {
+            console.log('⚠️ Could not import jotai-scope from WoeExcalidraw path:', woeJotaiError)
+            
+            // Fallback: try our local jotai-scope (this was failing before due to instance mismatch)
+            try {
+              // @ts-ignore - We're trying to access jotai-scope which may not be in our types
+              const jotaiScope = await import('jotai-scope')
+              console.log('📦 jotai-scope imported from local (may cause instance mismatch)')
+              console.log('� Local jotai-scope exports:', Object.keys(jotaiScope))
+              
+              if (jotaiScope.createIsolation) {
+                console.log('🎯 Creating isolation context for WoeExcalidraw (LOCAL - may fail)')
+                const isolation = jotaiScope.createIsolation()
+                console.log('✅ Local isolation created:', isolation)
+                
+                // The isolation returns { Provider, useStore, useAtom, etc. }
+                setWoeExcalidraw(() => ({ 
+                  Component: module.WoeExcalidraw || module.Excalidraw,
+                  Provider: isolation.Provider 
+                }))
+                return
+              }
+            } catch (localJotaiError) {
+              console.log('⚠️ Local jotai-scope import also failed:', localJotaiError)
+            }
+          }
+        }
+        
+        if (foundProvider) {
+          console.log(`🏗️ Using ${providerName} to wrap WoeExcalidraw`)
+          
+          // If it's createIsolation, we need to call it to create the provider
+          if (providerName === 'createIsolation') {
+            try {
+              const isolation = foundProvider()
+              console.log('🎯 Isolation created from module export')
+              setWoeExcalidraw(() => ({ 
+                Component: module.WoeExcalidraw || module.Excalidraw,
+                Provider: isolation.Provider 
+              }))
+            } catch (error) {
+              console.error('❌ Failed to create isolation provider:', error)
+              setWoeExcalidraw(() => module.WoeExcalidraw || module.Excalidraw)
+            }
+          } else {
+            setWoeExcalidraw(() => ({ 
+              Component: module.WoeExcalidraw || module.Excalidraw,
+              Provider: foundProvider 
+            }))
+          }
+        } else {
+          console.log('⚠️ No provider found - using component directly (may cause isolation errors)')
+          setWoeExcalidraw(() => module.WoeExcalidraw || module.Excalidraw)
+        }
+      } catch (error) {
+        console.error('❌ Failed to load WoeExcalidraw:', error)
+      }
+    }
+    
+    loadWoeExcalidraw()
+  }, [])
+
+  // Don't render anything on server or before WoeExcalidraw is loaded
+  if (!isClient || !WoeExcalidraw) {
+    return (
+      <div 
+        className={`w-full h-full ${className}`}
+        style={{ minHeight: '600px' }}
+      >
+        <div className="flex items-center justify-center h-full">
+          <div className="text-gray-500">Loading canvas...</div>
+        </div>
+      </div>
+    )
+  }
+
+  // Stable initial data
   const initialData = {
     elements: [],
     appState: {
@@ -56,416 +396,47 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
     },
   }
 
-  // Helper function to map store tools to Excalidraw tools
-  const mapToolToExcalidraw = (tool: string) => {
+  // Map WoE APP tools to WoE tool system
+  const mapToWoeTool = (tool: string): WoeToolType => {
     switch (tool) {
-      case 'select': return 'selection'
-      case 'draw': return 'freedraw'
+      case 'select': return 'select'
+      case 'draw': return 'draw'
       case 'text': return 'text'
-      case 'erase': return 'eraser'
-      case 'highlighter': return 'freedraw'
-      default: return 'freedraw'
-    }
-  }
-
-  // Helper function to map Excalidraw tools back to store tools
-  const mapToolFromExcalidraw = (excalidrawTool: string) => {
-    switch (excalidrawTool) {
-      case 'selection': return 'select'
-      case 'freedraw': return 'draw' // Default to draw for freedraw
-      case 'text': return 'text'
-      case 'eraser': return 'erase'
+      case 'erase': return 'erase'
+      case 'highlighter': return 'highlighter'
       default: return 'select'
     }
   }
 
-  // Track previous elements to detect new text creation
-  const prevElementsRef = useRef<any[]>([])
-  
-  // Change handler with state tracking and zoom lock
-  const handleChange = useCallback((elements: any, appState: any, files: any) => {
-    // Minimal logging for debugging
-    if (elements.length !== prevElementsRef.current.length) {
-      console.log('📊 Elements:', elements.length, 'Text:', elements.filter(el => el.type === 'text').length)
-    }
-    // ZOOM CONTROL: Lock canvas at 100% zoom
-    const currentZoom = appState.zoom?.value || 1.0
-    if (Math.abs(currentZoom - LOCKED_ZOOM) > 0.01) {
-      // Zoom has changed, snap it back
-      console.log('🔒 Locking zoom at 100% (was:', currentZoom, ')')
-      if (excalidrawRef.current) {
-        setTimeout(() => {
-          excalidrawRef.current.updateScene({
-            appState: { zoom: { value: LOCKED_ZOOM } }
-          })
-        }, 0)
-      }
-    }
-    
-    // Track text editing state changes
-    const currentEditingTextId = appState.editingElement?.id || null
-    const currentSelectedIds = appState.selectedElementIds || []
-    
-    // Smart tool sync: Keep text tool active when working with text
-    const excalidrawActiveTool = appState.activeTool?.type
-    if (excalidrawActiveTool) {
-      // Check if we're working with text elements
-      const isEditingText = currentEditingTextId !== null
-      const hasSelectedText = currentSelectedIds.length > 0 && elements.some((el: any) => 
-        currentSelectedIds.includes(el.id) && el.type === 'text'
-      )
-      
-      // If we're editing or have selected text, ensure Text tool stays active in UI
-      if ((isEditingText || hasSelectedText) && activeTool !== 'text') {
-        console.log('🔄 Auto-switching to text tool - editing:', isEditingText, 'selected text:', hasSelectedText)
-        setActiveTool('text')
-      }
-    }
-    
-    // Update store if text editing state has changed
-    if (currentEditingTextId !== editingTextId) {
-      setEditingTextId(currentEditingTextId)
-    }
-    
-    // Update store if selection has changed
-    if (JSON.stringify(currentSelectedIds) !== JSON.stringify(selectedElementIds)) {
-      setSelectedElementIds(currentSelectedIds)
-    }
-    
-    
-    // Update the previous elements reference
-    prevElementsRef.current = elements
-  }, [editingTextId, activeTool, setEditingTextId, setSelectedElementIds, setActiveTool, selectedElementIds])
-
-  // API handler with tool setup and zoom initialization
-  const handleExcalidrawAPI = useCallback((api: any) => {
-    excalidrawRef.current = api
-    
-    if (api) {
-      setExcalidrawAPI(api)
-      
-      // Set initial tool and zoom after delay
-      setTimeout(() => {
-        try {
-          const excalidrawTool = mapToolToExcalidraw(activeTool)
-          api.setActiveTool({ type: excalidrawTool })
-          
-          // Set initial zoom lock
-          api.updateScene({
-            appState: { zoom: { value: LOCKED_ZOOM } }
-          })
-          console.log('🔒 Initial zoom locked at 100%')
-        } catch (error) {
-          console.error('❌ Initial tool/zoom setup failed:', error)
-        }
-      }, 100)
-    }
-  }, [setExcalidrawAPI, activeTool])
-  
-  // BROWSER ZOOM PASSTHROUGH & SCROLL CONTROL: Handle wheel events
-  useEffect(() => {
-    const canvasWrapper = canvasWrapperRef.current
-    if (!canvasWrapper) return
-    
-    const handleWheel = (event: WheelEvent) => {
-      // Check if this is a browser zoom gesture (Ctrl/Cmd + wheel)
-      if (event.ctrlKey || event.metaKey) {
-        console.log('🔄 Browser zoom wheel detected, allowing passthrough')
-        // Stop propagation so Excalidraw doesn't see it
-        event.stopPropagation()
-        // DON'T preventDefault - let browser handle the zoom
-        return
-      }
-      
-      // Allow all scrolling - let page scroll naturally
-      // Note: Removed vertical scroll blocking to allow page scrolling
-      
-      // Allow horizontal scroll - let Excalidraw handle it for panning
-      console.log('✅ Allowing horizontal scroll for canvas panning')
-    }
-    
-    // Use capture phase to intercept before Excalidraw
-    canvasWrapper.addEventListener('wheel', handleWheel, { capture: true, passive: false })
-    
-    return () => {
-      canvasWrapper.removeEventListener('wheel', handleWheel, { capture: true } as any)
-    }
-  }, [])
-  
-  // BROWSER ZOOM PASSTHROUGH: Handle keyboard shortcuts (Ctrl/Cmd + +/-/0)
-  useEffect(() => {
-    const handleKeydown = (event: KeyboardEvent) => {
-      const isZoomKey = (event.ctrlKey || event.metaKey) && 
-        (event.key === '+' || event.key === '=' || event.key === '-' || event.key === '0')
-      
-      if (isZoomKey) {
-        console.log('🔄 Browser zoom key detected:', event.key, 'allowing passthrough')
-        // Stop propagation so Excalidraw doesn't see it
-        event.stopPropagation()
-        // DON'T preventDefault - let browser handle the zoom
-        return
-      }
-    }
-    
-    // Use capture phase on document to catch before any other handlers
-    document.addEventListener('keydown', handleKeydown, { capture: true })
-    
-    return () => {
-      document.removeEventListener('keydown', handleKeydown, { capture: true })
-    }
-  }, [])
-  
-  // LAYOUT RESPONSIVENESS: Handle container resize and layout changes
-  useEffect(() => {
-    const canvasWrapper = canvasWrapperRef.current
-    if (!canvasWrapper) return
-    
-    let resizeTimeout: NodeJS.Timeout
-    
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect
-        console.log('📏 Canvas container resized:', { width, height })
-        
-        // Debounce multiple rapid resizes
-        clearTimeout(resizeTimeout)
-        resizeTimeout = setTimeout(() => {
-          // Force Excalidraw to recalculate dimensions
-          if (excalidrawRef.current) {
-            try {
-              // Multiple refresh approaches for robustness
-              excalidrawRef.current.refresh?.()
-              
-              // Also try triggering a scene update to force re-render
-              excalidrawRef.current.updateScene?.({
-                appState: { zoom: { value: LOCKED_ZOOM } }
-              })
-              
-              console.log('🔄 Excalidraw refreshed after resize')
-            } catch (error) {
-              console.warn('⚠️ Excalidraw refresh failed:', error)
-            }
-          }
-        }, 150) // Debounce resizes
-      }
-    })
-    
-    resizeObserver.observe(canvasWrapper)
-    
-    // Also listen for window resize as backup
-    const handleWindowResize = () => {
-      if (typeof window === 'undefined') return
-      clearTimeout(resizeTimeout)
-      resizeTimeout = setTimeout(() => {
-        console.log('🪟 Window resized, refreshing canvas')
-        if (excalidrawRef.current) {
-          try {
-            excalidrawRef.current.refresh?.()
-          } catch (error) {
-            console.warn('⚠️ Window resize refresh failed:', error)
-          }
-        }
-      }, 200)
-    }
-    
-    if (typeof window !== 'undefined') {
-      window.addEventListener('resize', handleWindowResize)
-    }
-    
-    return () => {
-      clearTimeout(resizeTimeout)
-      resizeObserver.disconnect()
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('resize', handleWindowResize)
-      }
-    }
-  }, [])
-  
-  // BREAKPOINT RESPONSIVENESS: Handle xl breakpoint changes (sidebar position)
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    
-    const mediaQuery = window.matchMedia('(min-width: 1280px)') // xl breakpoint
-    
-    const handleBreakpointChange = (e: MediaQueryListEvent) => {
-      console.log('📱 Breakpoint changed - xl:', e.matches)
-      
-      // Give layout time to settle, then refresh canvas
-      setTimeout(() => {
-        if (excalidrawRef.current) {
-          try {
-            excalidrawRef.current.refresh?.()
-            excalidrawRef.current.updateScene?.({
-              appState: { zoom: { value: LOCKED_ZOOM } }
-            })
-            console.log('🔄 Canvas refreshed after breakpoint change')
-          } catch (error) {
-            console.warn('⚠️ Breakpoint refresh failed:', error)
-          }
-        }
-      }, 300)
-    }
-    
-    // Listen for breakpoint changes
-    mediaQuery.addEventListener('change', handleBreakpointChange)
-    
-    return () => {
-      mediaQuery.removeEventListener('change', handleBreakpointChange)
-    }
-  }, [])
-
-  // Tool synchronization
-  useEffect(() => {
-    if (excalidrawRef.current && activeTool) {
-      try {
-        const excalidrawTool = mapToolToExcalidraw(activeTool)
-        excalidrawRef.current.setActiveTool({ type: excalidrawTool })
-      } catch (error) {
-        console.error('❌ Tool sync failed:', error)
-      }
-    }
-  }, [activeTool])
-
-  // Text tool reset handling
-  useEffect(() => {
-    if (excalidrawRef.current && activeTool === 'text') {
-      if (!editingTextId && selectedElementIds.length === 0) {
-        try {
-          excalidrawRef.current.setActiveTool({ type: 'text' })
-        } catch (error) {
-          console.error('❌ Text tool refresh failed:', error)
-        }
-      }
-    }
-  }, [activeTool, editingTextId, selectedElementIds])
-
-  // Tool properties handling
-  useEffect(() => {
-    if (excalidrawRef.current && activeTool) {
-      try {
-        const updates: any = {}
-        
-        if (activeTool === 'highlighter') {
-          updates.currentItemStrokeColor = toolPrefs.highlighterColor || '#FACC15'
-          updates.currentItemOpacity = (toolPrefs.highlighterOpacity || 0.3) * 100
-          updates.currentItemStrokeWidth = toolPrefs.highlighterSize || 12
-        } else if (activeTool === 'draw') {
-          updates.currentItemStrokeColor = toolPrefs.drawColor || '#000000'
-          updates.currentItemOpacity = 100
-          updates.currentItemStrokeWidth = toolPrefs.drawSize || 4
-        } else if (activeTool === 'text') {
-          updates.currentItemStrokeColor = toolPrefs.textColor || '#000000'
-          updates.currentItemFontSize = toolPrefs.textSize || 24
-          updates.currentItemFontFamily = toolPrefs.textFamily || '"Times New Roman", Georgia, serif'
-        }
-        
-        if (Object.keys(updates).length > 0) {
-          excalidrawRef.current.updateScene({ appState: updates })
-        }
-      } catch (error) {
-        console.error('❌ Tool properties update failed:', error)
-      }
-    }
-  }, [activeTool, toolPrefs.highlighterColor, toolPrefs.highlighterOpacity, toolPrefs.highlighterSize, toolPrefs.drawColor, toolPrefs.drawSize, toolPrefs.textColor, toolPrefs.textSize, toolPrefs.textFamily])
-
   return (
     <div 
-      ref={canvasWrapperRef}
-      className={`w-full h-full ${className}`} 
-      style={{ 
-        minHeight: '600px',
-        touchAction: 'pan-x pan-y', // Allow browser pinch-zoom on mobile
-        overflowY: 'hidden', // Disable vertical scrolling
-        overflowX: 'auto' // Allow horizontal scrolling if needed
-      }}
+      className={`w-full h-full ${className}`}
+      style={{ minHeight: '600px' }}
     >
-      <Excalidraw
-        excalidrawAPI={handleExcalidrawAPI}
-        onChange={handleChange}
-        initialData={initialData}
-        viewModeEnabled={false}
-        UIOptions={{
-          canvasActions: {
-            saveToActiveFile: false,
-            loadScene: false,
-            export: false,
-            toggleTheme: false,
-            clearCanvas: false,
-            // Hide zoom controls
-            changeViewBackgroundColor: false
-          },
-          tools: {
-            image: false
-          }
+      {/* WoeExcalidraw should now have proper EditorJotaiProvider internally */}
+      <WoeExcalidraw
+        ref={handleWoeExcalidrawAPI}
+        tools={{
+          select: true,
+          draw: true, 
+          text: true,
+          erase: true,
+          highlighter: true,
         }}
-        renderTopRightUI={() => null}
-        renderFooter={() => null}
-        renderSidebar={() => null}
+        zoomConfig={{
+          zoomLocked: true,
+          lockedZoomValue: 100,
+          allowBrowserZoom: true,
+          blockInternalZoom: true,
+        }}
+        onChange={handleChange}
+        onToolChange={handleToolChange}
+        initialData={initialData}
+        theme="light"
+        detectScroll={true}
+        handleKeyboardGlobally={false}
+        autoFocus={false}
       />
-      <style jsx global>{`
-        /* Hide all Excalidraw UI elements */
-        .excalidraw .layer-ui__wrapper > * {
-          display: none !important;
-        }
-        .excalidraw .layer-ui__wrapper {
-          pointer-events: none !important;
-        }
-        .excalidraw .Island {
-          display: none !important;
-        }
-        .excalidraw [data-testid*="toolbar"] {
-          display: none !important;
-        }
-        .excalidraw [data-testid="tools-panel"] {
-          display: none !important;
-        }
-        .excalidraw .App-toolbar {
-          display: none !important;
-        }
-        .excalidraw .App-bottom-bar {
-          display: none !important;
-        }
-        
-        /* Hide zoom-specific UI elements */
-        .excalidraw [data-testid*="zoom"] {
-          display: none !important;
-        }
-        .excalidraw .zoom-actions {
-          display: none !important;
-        }
-        .excalidraw [aria-label*="zoom"] {
-          display: none !important;
-        }
-        .excalidraw [title*="zoom"] {
-          display: none !important;
-        }
-        .excalidraw [data-testid="zoom-in-button"],
-        .excalidraw [data-testid="zoom-out-button"],
-        .excalidraw [data-testid="reset-zoom-button"],
-        .excalidraw [data-testid="zoom-to-fit-button"] {
-          display: none !important;
-        }
-        
-        /* Ensure mobile touch handling works for browser zoom */
-        .excalidraw canvas {
-          touch-action: pan-x pan-y !important;
-        }
-        
-        /* Disable vertical scrolling on canvas */
-        .excalidraw,
-        .excalidraw .excalidraw-canvas {
-          overflow-y: hidden !important;
-          overflow-x: auto !important;
-        }
-        
-        /* Prevent vertical scrolling via CSS on the main canvas container */
-        .excalidraw .layer-ui__wrapper__top-left,
-        .excalidraw .layer-ui__wrapper__top-right,
-        .excalidraw .layer-ui__wrapper__bottom-left,
-        .excalidraw .layer-ui__wrapper__bottom-right {
-          overflow-y: hidden !important;
-        }
-      `}</style>
     </div>
   )
 }
