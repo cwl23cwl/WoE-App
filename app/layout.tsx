@@ -1,4 +1,5 @@
 // app/layout.tsx
+import "@woe/excalidraw/index.css";
 import "../.superdesign/design_iterations/default_ui_darkmode.css";
 import "../.superdesign/design_iterations/student_workspace_theme.css";
 import "./globals.css"; // keep your existing global/tailwind

@@ -1,3 +1,3 @@
-export * from "excalidraw";
-import ExcalidrawDefault from "excalidraw";
-export default ExcalidrawDefault;
+export * from "@excalidraw/excalidraw";
+export { Excalidraw as default } from "@excalidraw/excalidraw";
+export type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw";

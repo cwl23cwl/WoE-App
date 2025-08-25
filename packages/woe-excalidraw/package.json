@@ -2,14 +2,21 @@
   "name": "@woe/excalidraw",
   "version": "0.1.0",
   "private": true,
-  "main": "index.js",
-  "types": "index.d.ts",
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./index.css": "./index.css"
+  },
   "peerDependencies": {
     "react": ">=18",
     "react-dom": ">=18"
   },
   "dependencies": {
-    "@excalidraw/excalidraw": "0.18.0",
-    "@woe/excalidraw": "workspace:*"
+    "@excalidraw/excalidraw": "0.18.0"
   }
 }

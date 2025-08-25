@@ -1,3 +1,2 @@
-"use strict";
-// Re-export everything from upstream package
-module.exports = require("@excalidraw/excalidraw");
+export * from "@excalidraw/excalidraw";
+export { Excalidraw as default } from "@excalidraw/excalidraw";

@@ -1,14 +1,19 @@
+/* app/globals.css */
+
+/* 1) MUST come first so @layer works */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Optional: Google font */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-@import '../src/styles/z-index.css';
-/* Note: workspace-theme.css styles are included below instead of import */
 
+/* Remove or fix this import if the file doesn't exist */
+/* @import '../src/styles/z-index.css'; */
+
+/* 2) Base layer: brand CSS variables and sensible defaults */
 @layer base {
   :root {
-    /* Brand CSS Variables */
     --primary: #EC5D3A;
     --primary-600: #EB5733;
     --primary-300: #F3947D;
@@ -27,131 +32,89 @@
   * {
     @apply border-border;
   }
-  
-  body {
+
+  html, body {
     @apply bg-white text-gray-800 font-sans;
-    font-feature-settings: "rlig" 1, "calt" 1;
   }
-  
+
   h1, h2, h3, h4, h5, h6 {
     @apply text-gray-800;
   }
+
+  body {
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
 }
 
+/* 3) Components layer: ONLY use utilities Tailwind knows */
 @layer components {
-  /* Write on English Brand Components */
+  /* Buttons */
   .btn-primary {
-    @apply bg-primary hover:bg-primary-dark text-primary-foreground font-medium px-6 py-3 rounded-lg transition-all duration-200 shadow-soft hover:shadow-brand;
+    /* replaced hover:bg-primary-dark -> hover:bg-primary-600
+       replaced text-primary-foreground -> text-white */
+    @apply bg-primary hover:bg-primary-600 text-white font-medium px-6 py-3 rounded-lg transition-all duration-200 shadow-soft hover:shadow-brand;
   }
-  
+
   .btn-secondary {
-    @apply bg-secondary hover:bg-secondary/90 text-secondary-foreground font-medium px-6 py-3 rounded-lg transition-all duration-200;
+    /* no text-secondary-foreground in theme -> use text-white */
+    @apply bg-secondary hover:bg-secondary/90 text-white font-medium px-6 py-3 rounded-lg transition-all duration-200;
   }
-  
+
   .btn-accent {
-    @apply bg-accent hover:bg-accent/90 text-accent-foreground font-medium px-6 py-3 rounded-lg transition-all duration-200;
+    /* accent is light -> ensure contrast with black text */
+    @apply bg-accent hover:bg-accent/90 text-black font-medium px-6 py-3 rounded-lg transition-all duration-200;
   }
-  
+
   .btn-outline {
-    @apply border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground font-medium px-6 py-3 rounded-lg transition-all duration-200;
+    @apply border-2 border-primary text-primary hover:bg-primary hover:text-white font-medium px-6 py-3 rounded-lg transition-all duration-200;
   }
-  
+
+  /* Cards / Inputs */
   .card {
     @apply bg-white rounded-lg shadow-soft border border-gray-100 p-6 hover:shadow-brand transition-all duration-200;
   }
-  
+
   .card-header {
     @apply border-b border-gray-100 pb-4 mb-4;
   }
-  
+
   .input-field {
     @apply w-full px-4 py-3 rounded-lg border border-gray-100 bg-gray-50 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200;
   }
-  
-  /* Student Card Grid Utilities */
-  .icon-16 {
-    width: 16px;
-    height: 16px;
-  }
-  
-  .icon-text {
-    @apply inline-flex items-center gap-1 align-middle;
-  }
-  
-  /* Enhanced Grid Support for Equal Heights */
-  .student-grid {
-    display: grid;
-    grid-template-rows: repeat(auto-fit, 1fr);
-  }
-  
-  /* Browser fallback for auto-rows-fr */
+
+  /* Badges */
+  .badge-primary   { @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary/10   text-primary; }
+  .badge-secondary { @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-secondary/10 text-secondary; }
+  .badge-success   { @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-600/10 text-green-600; }
+
+  /* Icon helpers */
+  .icon-16 { width: 16px; height: 16px; }
+
+  .icon-text { @apply inline-flex items-center gap-1 align-middle; }
+
+  /* Student grid (kept from your file) */
+  .student-grid { display: grid; grid-template-rows: repeat(auto-fit, 1fr); }
   @supports not (grid-template-rows: repeat(auto-fit, 1fr)) {
-    .student-grid .student-card {
-      min-height: 240px; /* Fallback minimum height */
-    }
+    .student-grid .student-card { min-height: 240px; }
   }
-  
-  .badge-primary {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary;
-  }
-  
-  .badge-secondary {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-secondary/10 text-secondary;
-  }
-  
-  .badge-success {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-success/10 text-success;
-  }
-  
 }
 
+/* 4) Utilities layer: project-specific utilities */
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-  
-  .animate-fade-in {
-    animation: fadeIn 0.5s ease-in-out;
-  }
-  
-  .animate-slide-up {
-    animation: slideUp 0.3s ease-out;
-  }
-  
-  /* Fixed icon sizes */
-  .icon-16 {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-  }
-  
-  /* Two-row toolbar utilities */
-  .toolbar-transition {
-    transition: opacity 200ms ease-in-out, max-height 200ms ease-in-out, visibility 200ms ease-in-out;
-  }
-  
-  .toolbar-row-hidden {
-    opacity: 0;
-    max-height: 0;
-    visibility: hidden;
-    pointer-events: none;
-  }
-  
-  .toolbar-row-visible {
-    opacity: 1;
-    max-height: 3rem; /* Adjust based on content height */
-    visibility: visible;
-    pointer-events: auto;
-  }
-  
-  /* Mobile responsive toolbar */
+  .text-balance { text-wrap: balance; }
+  .animate-fade-in { animation: fadeIn 0.5s ease-in-out; }
+  .animate-slide-up { animation: slideUp 0.3s ease-out; }
+
+  .icon-16 { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .toolbar-transition { transition: opacity 200ms ease-in-out, max-height 200ms ease-in-out, visibility 200ms ease-in-out; }
+  .toolbar-row-hidden { opacity: 0; max-height: 0; visibility: hidden; pointer-events: none; }
+  .toolbar-row-visible { opacity: 1; max-height: 3rem; visibility: visible; pointer-events: auto; }
+
   @media (max-width: 768px) {
-    .toolbar-row-visible {
-      max-height: 6rem; /* More height for mobile wrapping */
-    }
+    .toolbar-row-visible { max-height: 6rem; }
   }
 
-  /* Workspace Theme Utilities */
   .canvas-container {
     position: relative;
     background: #ffffff;
@@ -159,11 +122,11 @@
     box-shadow: 0 4px 16px 0px rgba(27,42,73,0.08);
   }
 
-  .tool-active {
-    box-shadow: 0 0 0 2px theme('colors.brand.primary');
-  }
+  .tool-active { box-shadow: 0 0 0 2px theme('colors.brand.primary'); }
 
-  .font-inter {
-    font-feature-settings: "rlig" 1, "calt" 1;
-  }
+  .font-inter { font-feature-settings: "rlig" 1, "calt" 1; }
 }
+
+/* Optional keyframes if you use the animate-* utilities above */
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+@keyframes slideUp { from { transform: translateY(6px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
