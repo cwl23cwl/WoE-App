@@ -6,7 +6,7 @@ import { useEffect } from 'react'
 import Image from 'next/image'
 import { Logo } from '@/components/ui/logo'
 import { LogoutButton } from '@/components/ui/logout-button'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/Button'
 
 export default function StudentDashboard() {
   const { data: session, status } = useSession()

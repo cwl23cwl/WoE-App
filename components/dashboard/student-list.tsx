@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { StudentCard } from './student-card'
 import { Assignment } from '@/lib/types'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/Button'
 
 interface Student {
   id: string

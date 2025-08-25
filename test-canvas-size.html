@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Size Test</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            height: 60px;
+            background: white;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+        }
+        
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background: #f8f9fb;
+            overflow: hidden;
+        }
+        
+        .canvas-wrapper {
+            width: 100%;
+            height: 100%;
+            max-width: 16384px;
+            max-height: 16384px;
+            min-width: 400px;
+            min-height: 300px;
+            border: 2px solid #007acc;
+            box-sizing: border-box;
+        }
+        
+        .status {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-size: 12px;
+            z-index: 100;
+        }
+        
+        .test-canvas {
+            width: 100%;
+            height: 100%;
+            border: 1px dashed #ccc;
+            background: white;
+        }
+        
+        .error-display {
+            color: red;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        
+        .success-display {
+            color: green;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Canvas Size Constraint Test</h1>
+        </div>
+        
+        <div class="canvas-container">
+            <div class="status" id="status">
+                <div>Testing canvas size constraints...</div>
+                <div>Container: <span id="container-size">-</span></div>
+                <div>Canvas: <span id="canvas-size">-</span></div>
+                <div id="result-message"></div>
+            </div>
+            
+            <div class="canvas-wrapper" id="canvasWrapper">
+                <canvas class="test-canvas" id="testCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Canvas size constraints (same as our React implementation)
+        const CANVAS_MAX_WIDTH = 16384;
+        const CANVAS_MAX_HEIGHT = 16384;
+        const CANVAS_MIN_WIDTH = 400;
+        const CANVAS_MIN_HEIGHT = 300;
+        
+        function updateCanvasSize() {
+            const container = document.getElementById('canvasWrapper');
+            const canvas = document.getElementById('testCanvas');
+            const containerSizeEl = document.getElementById('container-size');
+            const canvasSizeEl = document.getElementById('canvas-size');
+            const resultEl = document.getElementById('result-message');
+            
+            if (!container || !canvas) return;
+            
+            const rect = container.getBoundingClientRect();
+            
+            // Calculate safe canvas dimensions (same logic as React)
+            const width = Math.min(
+                Math.max(rect.width || CANVAS_MIN_WIDTH, CANVAS_MIN_WIDTH),
+                CANVAS_MAX_WIDTH
+            );
+            const height = Math.min(
+                Math.max(rect.height || CANVAS_MIN_HEIGHT, CANVAS_MIN_HEIGHT),
+                CANVAS_MAX_HEIGHT
+            );
+            
+            // Update display
+            containerSizeEl.textContent = `${Math.round(rect.width)} x ${Math.round(rect.height)}`;
+            canvasSizeEl.textContent = `${width} x ${height}`;
+            
+            try {
+                // Test actual canvas creation with these dimensions
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    // Try to set transform to test for "Canvas exceeds max size" error
+                    ctx.setTransform(1, 0, 0, 1, 0, 0);
+                    resultEl.innerHTML = '<div class="success-display">✅ Canvas size constraints working!</div>';
+                } else {
+                    throw new Error('Could not get canvas context');
+                }
+            } catch (error) {
+                resultEl.innerHTML = `<div class="error-display">❌ Canvas Error: ${error.message}</div>`;
+            }
+        }
+        
+        // Initial size calculation
+        updateCanvasSize();
+        
+        // Monitor window resizing
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(updateCanvasSize, 150);
+        });
+        
+        // Monitor container resizing
+        if (window.ResizeObserver) {
+            const resizeObserver = new ResizeObserver(() => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(updateCanvasSize, 150);
+            });
+            resizeObserver.observe(document.getElementById('canvasWrapper'));
+        }
+    </script>
+</body>
+</html>

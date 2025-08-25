@@ -9,8 +9,8 @@ import { ClassCardsAccordion } from '@/components/dashboard/class-cards-accordio
 import { StudentList } from '@/components/dashboard/student-list'
 import { CalendarView } from '@/components/dashboard/calendar-view'
 import { Class, DashboardStats, AssignmentFolder, StudentCreationForm, AssignmentCreationForm, LoadingState, NotificationState } from '@/lib/types'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 import { StudentCreationModal } from '@/components/modals/student-creation-modal'
 import { AssignmentCreationModal } from '@/components/modals/assignment-creation-modal'
 

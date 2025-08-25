@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 import { User, Schedule, Class } from '@/lib/types'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/badge'
 import { Search, Filter, Download, Mail, UserPlus, Edit, Trash2, Calendar } from 'lucide-react'
 

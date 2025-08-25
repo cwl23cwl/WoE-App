@@ -1,0 +1,30 @@
+/* app/sd-namespace.css
+   Wrap superdesign’s generic classes under `.sd` to avoid collisions.
+   This file only adds scoping; it does not duplicate rules. */
+
+/* Typography helpers */
+.sd .text-xs { font-size: var(--font-size-xs); }
+.sd .text-sm { font-size: var(--font-size-sm); }
+.sd .text-base { font-size: var(--font-size-base); }
+.sd .text-lg { font-size: var(--font-size-lg); }
+.sd .text-xl { font-size: var(--font-size-xl); }
+.sd .text-2xl { font-size: var(--font-size-2xl); }
+.sd .text-3xl { font-size: var(--font-size-3xl); }
+.sd .text-4xl { font-size: var(--font-size-4xl); }
+
+/* Cards and buttons (prefix with sd- to be extra explicit where it matters) */
+.sd .sd-card { composes: card; }          /* relies on .card from superdesign */
+.sd .sd-toolbar { composes: toolbar; }    /* relies on .toolbar */
+.sd .sd-border { composes: border; }      /* relies on .border */
+
+/* Button base and variants */
+.sd .sd-btn { composes: btn; }
+.sd .sd-btn-primary { composes: btn btn-primary; }
+.sd .sd-btn-outline { composes: btn btn-outline; }
+.sd .sd-btn-ghost { composes: btn btn-ghost; }
+.sd .sd-btn-destructive { composes: btn btn-destructive; }
+.sd .sd-btn-sm { composes: btn-sm; }
+.sd .sd-btn-lg { composes: btn-lg; }
+
+/* Form inputs */
+.sd .sd-input { composes: form-input; }

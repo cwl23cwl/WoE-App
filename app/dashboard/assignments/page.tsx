@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { ResponsiveLayout } from '@/components/dashboard/responsive-layout'
 import { AssignmentFolderTabs } from '@/components/dashboard/assignment-folder-tabs'
 import { Assignment, AssignmentFolder, Class, DashboardStats } from '@/lib/types'
-import { Card } from '@/components/ui/card'
+import { Card } from '@/components/ui/Card'
 
 export default function AssignmentsPage() {
   const { data: session, status } = useSession()

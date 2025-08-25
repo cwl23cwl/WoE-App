@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Class, Assignment, SortConfig, AssignmentFolder } from '@/lib/types'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/badge'
 import { AssignmentFolderTabs } from './assignment-folder-tabs'
 import { formatDistanceToNow } from 'date-fns'

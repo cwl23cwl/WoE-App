@@ -77,9 +77,19 @@ interface BinaryFiles {
 
 interface ExcalidrawCanvasNativeProps {
   className?: string
+  maxWidth?: number
+  maxHeight?: number
+  minWidth?: number
+  minHeight?: number
 }
 
-export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativeProps) {
+export function ExcalidrawCanvasNative({ 
+  className = '',
+  maxWidth = 16384,
+  maxHeight = 16384,
+  minWidth = 400,
+  minHeight = 300
+}: ExcalidrawCanvasNativeProps) {
   const [WoeExcalidraw, setWoeExcalidraw] = useState<any>(null)
   const [isClient, setIsClient] = useState(false)
   const woeExcalidrawRef = useRef<any>(null)
@@ -411,7 +421,12 @@ export function ExcalidrawCanvasNative({ className = '' }: ExcalidrawCanvasNativ
   return (
     <div 
       className={`w-full h-full ${className}`}
-      style={{ minHeight: '600px' }}
+      style={{ 
+        minHeight: '600px',
+        maxWidth: `${maxWidth}px`,
+        maxHeight: `${maxHeight}px`,
+        minWidth: `${minWidth}px`
+      }}
     >
       {/* WoeExcalidraw should now have proper EditorJotaiProvider internally */}
       <WoeExcalidraw

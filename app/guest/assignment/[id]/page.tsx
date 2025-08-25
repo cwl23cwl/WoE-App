@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Logo } from '@/components/ui/logo'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/Button'
 import { GuestSessionManager, GuestSession } from '@/lib/guest-session'
 import { SaveProgressModal } from '@/components/guest/save-progress-modal'
 

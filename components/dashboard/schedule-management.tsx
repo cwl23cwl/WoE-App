@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { Schedule, Class, User } from '@/lib/types'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, Clock, Users, Plus, Edit, Trash2, AlertCircle } from 'lucide-react'
 

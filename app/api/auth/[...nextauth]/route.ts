@@ -1,87 +1,32 @@
-import { NextAuthOptions } from 'next-auth'
-import NextAuth from 'next-auth/next'
-import CredentialsProvider from 'next-auth/providers/credentials'
-import { PrismaAdapter } from '@next-auth/prisma-adapter'
-import { prisma } from '@/lib/prisma'
-import bcrypt from 'bcryptjs'
-import { Role } from '@prisma/client'
+// app/api/auth/[...nextauth]/route.ts
+import NextAuth from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
 
-export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+const handler = NextAuth({
+  secret: process.env.NEXTAUTH_SECRET,
+  trustHost: true,
+  session: { strategy: "jwt" },
   providers: [
     CredentialsProvider({
-      name: 'credentials',
+      name: "Credentials",
       credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' }
+        email: { label: "Email", type: "text" },
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null
+        // TEMP: accept any email (replace with real check later)
+        if (credentials?.email) {
+          return {
+            id: "user-1",
+            name: "Demo User",
+            email: credentials.email,
+          };
         }
-
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email
-          }
-        })
-
-        if (!user) {
-          return null
-        }
-
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        )
-
-        if (!isPasswordValid) {
-          return null
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          avatar: user.avatar || undefined,
-        }
-      }
-    })
+        return null;
+      },
+    }),
   ],
-  session: {
-    strategy: 'jwt'
-  },
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.role = user.role
-        token.avatar = user.avatar
-      }
-      return token
-    },
-    async session({ session, token }) {
-      if (token) {
-        session.user.id = token.sub!
-        session.user.role = token.role as Role
-        session.user.avatar = token.avatar as string
-      }
-      return session
-    },
-    async redirect({ url, baseUrl }) {
-      if (url.startsWith('/')) return `${baseUrl}${url}`
-      else if (new URL(url).origin === baseUrl) return url
-      return baseUrl
-    }
-  },
-  pages: {
-    signIn: '/auth/signin',
-    signOut: '/auth/signout',
-    error: '/auth/error',
-  },
-  secret: process.env.NEXTAUTH_SECRET,
-}
+  debug: true,
+});
 
-const handler = NextAuth(authOptions)
-
-export { handler as GET, handler as POST }
+export { handler as GET, handler as POST };

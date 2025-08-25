@@ -49,6 +49,9 @@
   --radius-md: 0.75rem;
   --radius-lg: 1.25rem;
   --radius-xl: 2rem;
+  --primary-dark: #d94f2f;           /* a darker shade of #EC5D3A */
+  --shadow-soft: 0 4px 12px rgba(27, 42, 73, 0.12);
+  --shadow-brand: 0 8px 24px rgba(236, 93, 58, 0.25);
 }
 
 body {

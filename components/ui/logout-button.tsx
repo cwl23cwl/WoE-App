@@ -1,7 +1,7 @@
 'use client'
 
 import { signOut } from 'next-auth/react'
-import { Button } from './button'
+import { Button } from './Button'
 
 interface LogoutButtonProps {
   variant?: 'primary' | 'secondary' | 'accent' | 'outline' | 'ghost'

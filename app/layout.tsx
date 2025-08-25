@@ -1,34 +1,20 @@
-import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
-import { Providers } from './providers'
+// app/layout.tsx
+import "../.superdesign/design_iterations/default_ui_darkmode.css";
+import "../.superdesign/design_iterations/student_workspace_theme.css";
+import "./globals.css"; // keep your existing global/tailwind
+// (optional) comment this out for now if you added it earlier
+// import "./sd-namespace.css";
 
-const inter = Inter({ subsets: ['latin'] })
+export const metadata = {
+  title: "Write on English",
+  description: "Classroom workspace by Write on English",
+};
 
-export const metadata: Metadata = {
-  title: 'Write on English - ESL Classroom App',
-  description: 'Learn English writing with pictures and stories. ESL classroom management made simple.',
-}
-
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  // Allow user scaling for browser zoom (no maximum-scale limit)
-  userScalable: true,
-}
-
-interface RootLayoutProps {
-  children: React.ReactNode
-}
-
-export default function RootLayout({ children }: RootLayoutProps) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Light mode everywhere
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        <Providers>
-          {children}
-        </Providers>
-      </body>
+    <html lang="en" className="sd">
+      <body>{children}</body>
     </html>
-  )
+  );
 }

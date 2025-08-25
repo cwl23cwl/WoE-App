@@ -7,7 +7,8 @@
       "Bash(yarn rm:build:*)",
       "Bash(grep:*)",
       "Bash(yarn build:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(npm run build:*)"
     ],
     "additionalDirectories": [
       "C:\\Users\\charl\\Desktop\\woe-excalidraw"

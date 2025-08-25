@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/Button'
 import { LogoutButton } from '@/components/ui/logout-button'
 
 interface UserMenuProps {

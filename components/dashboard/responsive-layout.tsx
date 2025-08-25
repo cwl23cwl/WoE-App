@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { SidebarNav } from './sidebar-nav'
 import { UserMenu } from './user-menu'
 import { Logo } from '@/components/ui/logo'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/Button'
 
 interface ResponsiveLayoutProps {
   children: React.ReactNode

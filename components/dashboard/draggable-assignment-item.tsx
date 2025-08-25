@@ -4,7 +4,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Assignment, AssignmentFolder } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
-import { Card } from '@/components/ui/card'
+import { Card } from '@/components/ui/Card'
 import { formatDistanceToNow } from 'date-fns'
 
 interface DraggableAssignmentItemProps {

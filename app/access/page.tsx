@@ -6,8 +6,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Logo } from '@/components/ui/logo'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 
 const accessCodeSchema = z.object({
   code: z.string().min(1, 'Please enter an assignment code').toUpperCase(),
