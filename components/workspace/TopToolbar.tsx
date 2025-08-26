@@ -1,4 +1,4 @@
-// components/workspace/TopToolbar.tsx - Fixed for Store Integration
+// components/workspace/TopToolbar.tsx - Full implementation with accordion system
 'use client'
 
 import React, { useCallback, useState } from 'react'
@@ -114,7 +114,7 @@ export function TopToolbar({ onUndo, onRedo, onLibraryOpen }: TopToolbarProps) {
 
   // Tool selection with API integration
   const handleToolSelect = useCallback((tool: Tool) => {
-    console.log(`🔧 TopToolbar: Switching to ${tool.label} tool`)
+    console.log(`TopToolbar: Switching to ${tool.label} tool`)
     
     try {
       // Configure tool with preferences
@@ -128,8 +128,8 @@ export function TopToolbar({ onUndo, onRedo, onLibraryOpen }: TopToolbarProps) {
               currentItemStrokeColor: toolPrefs.drawColor,
               currentItemStrokeWidth: toolPrefs.drawSize || 4,
               currentItemOpacity: 100,
-              currentItemStrokeStyle: 'solid', // Always use solid lines
-              currentItemRoughness: 0 // Always smooth
+              currentItemStrokeStyle: 'solid',
+              currentItemRoughness: 0
             }
           })
         } else if (tool.id === 'highlighter' && toolPrefs.highlighterColor) {
@@ -138,8 +138,8 @@ export function TopToolbar({ onUndo, onRedo, onLibraryOpen }: TopToolbarProps) {
               currentItemStrokeColor: toolPrefs.highlighterColor,
               currentItemStrokeWidth: toolPrefs.highlighterSize || 12,
               currentItemOpacity: Math.round((toolPrefs.highlighterOpacity || 0.3) * 100),
-              currentItemStrokeStyle: 'solid', // Always use solid lines
-              currentItemRoughness: 0 // Always smooth
+              currentItemStrokeStyle: 'solid',
+              currentItemRoughness: 0
             }
           })
         } else if (tool.id === 'text' && toolPrefs.textColor) {
@@ -147,22 +147,22 @@ export function TopToolbar({ onUndo, onRedo, onLibraryOpen }: TopToolbarProps) {
             appState: {
               currentItemStrokeColor: toolPrefs.textColor,
               currentItemFontSize: toolPrefs.textSize || 24,
-              currentItemStrokeStyle: 'solid' // Always use solid lines
+              currentItemStrokeStyle: 'solid'
             }
           })
         }
         
         excalidrawAPI.setActiveTool(toolConfig)
       } else {
-        console.warn('⚠️ TopToolbar: Excalidraw API not available')
+        console.warn('TopToolbar: Excalidraw API not available')
       }
 
       // Update store state
       setActiveTool(tool.id)
-      console.log(`✅ TopToolbar: ${tool.label} tool configured successfully`)
+      console.log(`TopToolbar: ${tool.label} tool configured successfully`)
       
     } catch (error) {
-      console.error(`❌ TopToolbar: Failed to configure ${tool.label} tool:`, error)
+      console.error(`TopToolbar: Failed to configure ${tool.label} tool:`, error)
       // Fallback to store-only update
       setActiveTool(tool.id)
     }
@@ -186,17 +186,14 @@ export function TopToolbar({ onUndo, onRedo, onLibraryOpen }: TopToolbarProps) {
       setTimeout(() => {
         if (excalidrawAPI) {
           try {
-            // Force coordinate system refresh
             const event = new Event('resize', { bubbles: true })
             window.dispatchEvent(event)
             
-            // Additional coordinate fix
             setTimeout(() => {
               const currentState = excalidrawAPI.getAppState()
               excalidrawAPI.updateScene({
                 appState: {
                   ...currentState,
-                  // Force coordinate recalculation
                   timestamp: Date.now()
                 }
               })
@@ -205,7 +202,7 @@ export function TopToolbar({ onUndo, onRedo, onLibraryOpen }: TopToolbarProps) {
             console.warn('Coordinate refresh failed:', error)
           }
         }
-      }, 600) // After accordion animation completes
+      }, 600)
       
     } else {
       // Non-accordion tools close any open accordion
@@ -220,14 +217,14 @@ export function TopToolbar({ onUndo, onRedo, onLibraryOpen }: TopToolbarProps) {
 
   // Undo with API integration
   const handleUndo = useCallback(() => {
-    console.log('↶ TopToolbar: Undo action')
+    console.log('TopToolbar: Undo action')
     
     if (excalidrawAPI) {
       try {
         excalidrawAPI.undo()
-        console.log('✅ TopToolbar: Excalidraw undo executed')
+        console.log('TopToolbar: Excalidraw undo executed')
       } catch (error) {
-        console.error('❌ TopToolbar: Excalidraw undo failed:', error)
+        console.error('TopToolbar: Excalidraw undo failed:', error)
       }
     }
     
@@ -238,14 +235,14 @@ export function TopToolbar({ onUndo, onRedo, onLibraryOpen }: TopToolbarProps) {
 
   // Redo with API integration
   const handleRedo = useCallback(() => {
-    console.log('↷ TopToolbar: Redo action')
+    console.log('TopToolbar: Redo action')
     
     if (excalidrawAPI) {
       try {
         excalidrawAPI.redo()
-        console.log('✅ TopToolbar: Excalidraw redo executed')
+        console.log('TopToolbar: Excalidraw redo executed')
       } catch (error) {
-        console.error('❌ TopToolbar: Excalidraw redo failed:', error)
+        console.error('TopToolbar: Excalidraw redo failed:', error)
       }
     }
     
@@ -408,9 +405,9 @@ export function TopToolbar({ onUndo, onRedo, onLibraryOpen }: TopToolbarProps) {
         }
 
         .accordion-container {
-          height: 90px; /* Increased height for more space */
+          height: 90px;
           overflow: hidden;
-          transition: none; /* Let the inner component handle transitions */
+          transition: none;
         }
 
         .canvas-buffer {

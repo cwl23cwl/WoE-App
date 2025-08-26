@@ -1,247 +1,242 @@
-// components/workspace/ExcalidrawCanvasMinimal.tsx - PRECISION FIX
-'use client'
+// components/workspace/ExcalidrawCanvasMinimal.tsx - Simplified compatible version
+"use client";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from 'next/dynamic';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react'
-
-interface ExcalidrawCanvasMinimalProps {
-  onExcalidrawAPI?: (api: any) => void
-  className?: string
-  width?: string | number
-  height?: string | number
-}
-
-export function ExcalidrawCanvasMinimal({ 
-  onExcalidrawAPI,
-  className = "",
-  width = "100%", 
-  height = "calc(100vh - 140px)"
-}: ExcalidrawCanvasMinimalProps) {
-  const [ExcalidrawComponent, setExcalidrawComponent] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  
-  const apiRef = useRef<any>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  // Load Excalidraw module
-  useEffect(() => {
-    let mounted = true
-
-    const loadExcalidraw = async () => {
-      try {
-        console.log('🔄 Loading Excalidraw...')
-        const module = await import('@excalidraw/excalidraw')
-        
-        if (mounted) {
-          console.log('✅ Excalidraw loaded')
-          setExcalidrawComponent(() => module.Excalidraw)
-          setIsLoading(false)
-        }
-      } catch (error) {
-        console.error('❌ Failed to load Excalidraw:', error)
-        if (mounted) setIsLoading(false)
-      }
-    }
-
-    loadExcalidraw()
-    return () => { mounted = false }
-  }, [])
-
-  // CRITICAL: API callback with precision fixes
-  const handleExcalidrawAPI = useCallback((api: any) => {
-    if (api && api !== apiRef.current) {
-      console.log('🎯 ExcalidrawCanvasMinimal: API initialized')
-      apiRef.current = api
-      
-      // CRITICAL: Ensure proper canvas setup for precision
-      const setupPrecision = () => {
-        try {
-          // Ensure canvas has proper pixel ratio and no scaling issues
-          const canvas = containerRef.current?.querySelector('canvas')
-          if (canvas) {
-            // Force proper canvas sizing to match display size
-            const rect = canvas.getBoundingClientRect()
-            const devicePixelRatio = window.devicePixelRatio || 1
-            
-            console.log(`🎯 Canvas setup - Display: ${rect.width}x${rect.height}, DPR: ${devicePixelRatio}`)
-            
-            // Excalidraw should handle this internally, but we ensure it's correct
-            if (canvas.width !== rect.width * devicePixelRatio || 
-                canvas.height !== rect.height * devicePixelRatio) {
-              console.log('⚠️ Canvas size mismatch detected - Excalidraw will handle internally')
-            }
-          }
-
-          // Set initial app state to prevent coordinate issues
-          api.updateScene({
-            appState: {
-              // CRITICAL: Disable internal zoom/pan that can cause precision issues
-              zenModeEnabled: false,
-              gridSize: null,
-              // Start with clean coordinate system
-              scrollX: 0,
-              scrollY: 0,
-              zoom: { value: 1 },
-              // Ensure proper cursor behavior
-              activeTool: { type: 'selection' },
-              // Disable any potential coordinate transformations
-              offsetLeft: 0,
-              offsetTop: 0
-            }
-          })
-
-          console.log('✅ Precision setup complete')
-        } catch (error) {
-          console.error('❌ Precision setup failed:', error)
-        }
-      }
-
-      // Use RAF to ensure DOM is ready
-      requestAnimationFrame(() => {
-        setupPrecision()
-        
-        // Pass API to parent
-        if (onExcalidrawAPI) {
-          onExcalidrawAPI(api)
-        }
-      })
-    }
-  }, [onExcalidrawAPI])
-
-  // CRITICAL: Minimal onChange to prevent loops but maintain functionality
-  const handleChange = useCallback((elements: any, appState: any) => {
-    // Only log significant changes to avoid spam
-    if (elements && elements.length > 0) {
-      console.log(`📝 Canvas updated: ${elements.length} elements`)
-    }
-  }, [])
-
-  if (isLoading || !ExcalidrawComponent) {
-    return (
-      <div 
-        className={`flex items-center justify-center bg-gray-50 ${className}`}
-        style={{ width, height }}
-      >
+// Dynamically import Excalidraw to avoid SSR issues
+const ExcalidrawComponent = dynamic(
+  () => import("@excalidraw/excalidraw").then((mod) => ({ default: mod.Excalidraw })),
+  { 
+    ssr: false, 
+    loading: () => (
+      <div className="w-full h-full flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
           <p className="text-gray-600">Loading canvas...</p>
         </div>
       </div>
     )
   }
+);
+
+interface ExcalidrawCanvasMinimalProps {
+  onExcalidrawAPI?: (api: any) => void;
+  className?: string;
+}
+
+function ExcalidrawCanvasMinimal({ 
+  onExcalidrawAPI, 
+  className = "" 
+}: ExcalidrawCanvasMinimalProps) {
+  const [mounted, setMounted] = useState(false);
+  const excalidrawAPIRef = useRef<any>(null);
+
+  // Ensure component is mounted client-side
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Handle API callback
+  const handleAPIReady = useCallback((api: any) => {
+    if (api) {
+      console.log('Canvas: API ready');
+      excalidrawAPIRef.current = api;
+      
+      // Notify parent component that API is available
+      if (onExcalidrawAPI) {
+        onExcalidrawAPI(api);
+      }
+
+      // Initial setup
+      setTimeout(() => {
+        try {
+          if (api.updateScene) {
+            api.updateScene({
+              appState: {
+                zenModeEnabled: false,
+                viewBackgroundColor: '#ffffff',
+              },
+            });
+          }
+          console.log('Canvas: Initial setup complete');
+        } catch (error) {
+          console.error('Canvas: Setup failed:', error);
+        }
+      }, 100);
+    }
+  }, [onExcalidrawAPI]);
+
+  // Enhanced scroll button removal
+  useEffect(() => {
+    if (!mounted) return;
+
+    const removeScrollBackButton = () => {
+      const selectors = [
+        '.excalidraw__scroll-back-to-content',
+        '[class*="scroll-back"]',
+        '[data-testid*="scroll-back"]',
+        '[aria-label*="scroll back" i]',
+        '[title*="scroll back" i]',
+        '.scroll-to-content',
+        '.scrollBackToContent'
+      ];
+
+      selectors.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(element => {
+          if (element && element.parentNode) {
+            element.remove();
+          }
+        });
+      });
+    };
+
+    // Initial removal after a delay
+    const initialTimer = setTimeout(removeScrollBackButton, 1000);
+
+    // Periodic cleanup
+    const interval = setInterval(removeScrollBackButton, 3000);
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
+  }, [mounted]);
+
+  // Don't render until mounted client-side
+  if (!mounted) {
+    return (
+      <div className={`w-full h-full flex items-center justify-center bg-gray-50 ${className}`}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
+          <p className="text-gray-600">Initializing...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div 
-      ref={containerRef}
-      className={`excalidraw-minimal-wrapper ${className}`}
-      style={{ 
-        width, 
-        height,
-        // CRITICAL: Ensure no CSS transforms that interfere with coordinates
-        transform: 'none',
-        position: 'relative',
-        // Prevent any potential scaling issues
-        minWidth: 0,
-        minHeight: 0,
-      }}
-    >
+    <div className={`excalidraw-canvas-wrapper w-full h-full relative overflow-hidden bg-white ${className}`}>
       <ExcalidrawComponent
-        excalidrawAPI={handleExcalidrawAPI}
-        onChange={handleChange}
-        initialData={{ 
-          elements: [], 
-          appState: {
-            // CRITICAL: Clean initial state for precision
-            currentItemStrokeColor: '#000000',
-            currentItemStrokeWidth: 2,
-            currentItemOpacity: 100,
-            theme: 'light',
-            viewBackgroundColor: 'transparent',
-            // Ensure clean coordinate system
-            zoom: { value: 1 },
-            scrollX: 0,
-            scrollY: 0,
-            // Disable features that can cause precision issues
-            zenModeEnabled: false,
-            gridSize: null,
-            snapToGrid: false,
-          }
+        excalidrawAPI={handleAPIReady}
+        initialData={{
+          appState: { 
+            zenModeEnabled: false, 
+            viewBackgroundColor: '#ffffff'
+          },
+          elements: [],
         }}
         UIOptions={{
           canvasActions: {
             toggleTheme: false,
-            clearCanvas: false,
-            export: false,
-            loadScene: false,
             saveToActiveFile: false,
-            saveAsImage: false,
-            changeViewBackgroundColor: false
-          },
-          tools: { image: false }
+            loadScene: false,
+            export: false,
+            saveAsImage: false
+          }
         }}
-        renderTopRightUI={() => null}
-        renderCustomStats={() => null}
-        zenModeEnabled={false}
-        gridModeEnabled={false}
-        theme="light"
-        viewModeEnabled={false}
-        detectScroll={false}
-        handleKeyboardGlobally={false}
-        autoFocus={false}
       />
 
-      {/* CRITICAL: CSS to hide UI and ensure precision */}
+      {/* Enhanced CSS - Comprehensive UI hiding */}
       <style jsx>{`
-        .excalidraw-minimal-wrapper :global(.App-toolbar),
-        .excalidraw-minimal-wrapper :global(.App-menu),
-        .excalidraw-minimal-wrapper :global(.App-bottom-bar),
-        .excalidraw-minimal-wrapper :global(.FixedSideContainer),
-        .excalidraw-minimal-wrapper :global(.Island),
-        .excalidraw-minimal-wrapper :global(.welcome-screen-center),
-        .excalidraw-minimal-wrapper :global(.welcome-screen-title),
-        .excalidraw-minimal-wrapper :global(.welcome-screen-subtitle) {
+        /* ===== HIDE DEFAULT TOOLBAR AND MENUS ===== */
+        .excalidraw-canvas-wrapper :global(.App-toolbar),
+        .excalidraw-canvas-wrapper :global(.App-toolbar-content),
+        .excalidraw-canvas-wrapper :global(.App-top-bar),
+        .excalidraw-canvas-wrapper :global(.ToolIcon),
+        .excalidraw-canvas-wrapper :global(.App-menu),
+        .excalidraw-canvas-wrapper :global(.App-menu_top),
+        .excalidraw-canvas-wrapper :global(.excalidraw-button),
+        .excalidraw-canvas-wrapper :global([data-testid="main-menu-trigger"]),
+        .excalidraw-canvas-wrapper :global([data-testid*="menu"]) {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
+
+        /* ===== HIDE SCROLL BACK BUTTONS ===== */
+        .excalidraw-canvas-wrapper :global(.excalidraw__scroll-back-to-content),
+        .excalidraw-canvas-wrapper :global([class*="scroll-back"]),
+        .excalidraw-canvas-wrapper :global([data-testid*="scroll-back"]),
+        .excalidraw-canvas-wrapper :global([aria-label*="scroll back" i]),
+        .excalidraw-canvas-wrapper :global([title*="scroll back" i]),
+        .excalidraw-canvas-wrapper :global(.scroll-to-content),
+        .excalidraw-canvas-wrapper :global(.scrollBackToContent) {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+          position: absolute !important;
+          left: -99999px !important;
+          z-index: -999 !important;
+        }
+
+        /* ===== HIDE FLOATING BUTTONS AND OVERLAYS ===== */
+        .excalidraw-canvas-wrapper :global(button[class*="floating"]),
+        .excalidraw-canvas-wrapper :global(.floating-action-button),
+        .excalidraw-canvas-wrapper :global([class*="fab"]),
+        .excalidraw-canvas-wrapper :global(.App-menu_top) {
           display: none !important;
         }
 
-        /* CRITICAL: Ensure canvas takes full space without scaling issues */
-        .excalidraw-minimal-wrapper :global(.excalidraw) {
-          width: 100% !important;
-          height: 100% !important;
-          /* Remove any transforms that could affect precision */
-          transform: none !important;
-          /* Ensure proper positioning */
-          position: relative !important;
+        /* ===== HIDE WELCOME SCREEN AND LIBRARY ===== */
+        .excalidraw-canvas-wrapper :global(.welcome-screen),
+        .excalidraw-canvas-wrapper :global(.library-menu),
+        .excalidraw-canvas-wrapper :global([data-testid="library-menu"]) {
+          display: none !important;
         }
 
-        /* CRITICAL: Canvas precision fixes */
-        .excalidraw-minimal-wrapper :global(.App-canvas) {
-          pointer-events: auto !important;
-          cursor: crosshair;
-          /* Ensure no CSS scaling */
-          transform: none !important;
-          /* Proper canvas sizing */
+        /* ===== CANVAS POSITIONING AND LAYERING ===== */
+        .excalidraw-canvas-wrapper :global(.excalidraw) {
+          position: relative !important;
           width: 100% !important;
           height: 100% !important;
-          /* Remove any positioning offsets */
-          left: 0 !important;
+          overflow: hidden !important;
+        }
+
+        .excalidraw-canvas-wrapper :global(.App-canvas) {
+          position: absolute !important;
           top: 0 !important;
+          left: 0 !important;
+          transform: none !important;
         }
 
-        /* CRITICAL: Ensure canvas container has no transforms */
-        .excalidraw-minimal-wrapper :global(.excalidraw-wrapper),
-        .excalidraw-minimal-wrapper :global(.App),
-        .excalidraw-minimal-wrapper :global(.App-canvas-container) {
-          transform: none !important;
-          position: relative !important;
+        /* ===== HIDE ZOOM CONTROLS ===== */
+        .excalidraw-canvas-wrapper :global(.zoom-menu),
+        .excalidraw-canvas-wrapper :global([data-testid*="zoom"]) {
+          display: none !important;
+        }
+
+        /* ===== HIDE HELP AND SHORTCUTS ===== */
+        .excalidraw-canvas-wrapper :global(.help-icon),
+        .excalidraw-canvas-wrapper :global([data-testid="help"]),
+        .excalidraw-canvas-wrapper :global(.shortcuts-dialog) {
+          display: none !important;
+        }
+
+        /* ===== FORCE CLEAN LAYOUT ===== */
+        .excalidraw-canvas-wrapper :global(.App) {
+          --ui-pointerEvents: none !important;
+        }
+
+        /* Hide any remaining UI elements by common patterns */
+        .excalidraw-canvas-wrapper :global([class*="menu"]),
+        .excalidraw-canvas-wrapper :global([class*="toolbar"]),
+        .excalidraw-canvas-wrapper :global([class*="button"]):not([class*="canvas"]) {
+          display: none !important;
+        }
+
+        /* Ensure canvas takes full space */
+        .excalidraw-canvas-wrapper :global(.excalidraw-wrapper) {
           width: 100% !important;
           height: 100% !important;
-        }
-
-        /* Remove any zoom-related UI that might interfere */
-        .excalidraw-minimal-wrapper :global(.zoom-ui),
-        .excalidraw-minimal-wrapper :global(.scroll-buttons) {
-          display: none !important;
         }
       `}</style>
     </div>
-  )
+  );
 }
+
+// Export both named and default
+export { ExcalidrawCanvasMinimal };
+export default ExcalidrawCanvasMinimal;

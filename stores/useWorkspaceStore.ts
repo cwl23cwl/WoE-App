@@ -1,982 +1,286 @@
+// stores/useWorkspaceStore.ts - Enhanced to match your existing toolbar components
+'use client'
+
 import { create } from 'zustand'
-import { devtools, persist } from 'zustand/middleware'
 
-export interface ToolPrefs {
-  // Draw tool preferences
-  drawSize: number
-  drawColor: string
-  drawOpacity: number
-  drawSmoothness: boolean
-  
-  // Highlighter tool preferences
-  highlighterSize: number
-  highlighterColor: string
-  highlighterOpacity: number
-  
-  // Text tool preferences
-  textSize: number
-  textColor: string
-  textFamily: string
-  textBold: boolean
-  textItalic: boolean
-  textUnderline: boolean
-  textAlign: 'left' | 'center' | 'right'
-  textLineSpacing: number
-  textBackgroundColor: string
-  textBackgroundEnabled: boolean
-  textBorderEnabled: boolean
-  textBorderColor: string
-  textBorderThickness: number
-  
-  // Eraser tool preferences
-  eraserSize: number
-  eraserMode: 'stroke' | 'object'
-}
+// Types
+type SaveState = 'saved' | 'saving' | 'unsaved' | 'error'
+type ToolType = 'select' | 'draw' | 'highlighter' | 'text' | 'erase' | 'shapes'
 
-export interface WorkspacePage {
+interface Page {
   id: string
-  scene: any
-  orientation: 'portrait' | 'landscape'
-  thumbnail?: string
-  pdfBackground?: string // URL or base64 data for PDF background
+  title: string
+  elements: any[]
+  appState: any
+  createdAt: Date
+  updatedAt: Date
 }
 
-export interface TextDefaults {
-  fontFamily: string
-  fontSize: number
-  bold: boolean
-  italic: boolean
-  underline: boolean
-  textColor: string
-  backgroundOn: boolean
-  backgroundColor: string
-  borderOn: boolean
-  borderColor: string
-  borderThickness: number
-  align: 'left' | 'center' | 'right'
+interface ToolPrefs {
+  drawColor?: string
+  drawSize?: number
+  highlighterColor?: string
+  highlighterSize?: number
+  highlighterOpacity?: number
+  textColor?: string
+  textSize?: number
 }
 
-export interface WorkspaceState {
-  // UI State
-  activeTool: 'select' | 'draw' | 'highlighter' | 'text' | 'erase' | 'shapes'
-  activeDrawer: 'none' | 'text' | 'draw' | 'highlight' | null
-  openDrawer: 'none' | 'text' | 'draw' | 'highlight'
-  zoom: number
-  
-  // Page display settings
-  showMarginGuides: boolean
-  
-  // Page State
-  pages: WorkspacePage[]
+interface WorkspaceState {
+  // Page Management
+  pages: Page[]
   currentPageIndex: number
   
-  // Save State
-  saveState: 'saved' | 'saving' | 'unsaved' | 'error'
-  isDirty: boolean
-  
-  // Tool Preferences (persisted to localStorage)
+  // Tool State  
+  activeTool: ToolType
   toolPrefs: ToolPrefs
   
-  // Recent colors (last 6 custom colors)
-  recentColors: string[]
+  // Excalidraw Integration
+  excalidrawAPI: any | null
   
-  // Canvas state
+  // Save State
+  saveState: SaveState
   canUndo: boolean
   canRedo: boolean
-  excalidrawAPI: any // Reference to Excalidraw API
   
-  // Selection and text editing state
-  selectedElementIds: string[]
-  editingTextId: string | null
-  textDefaults: TextDefaults
-}
-
-export interface WorkspaceActions {
-  // Tool actions
-  setActiveTool: (tool: WorkspaceState['activeTool']) => void
-  setActiveDrawer: (drawer: string | null) => void
-  setOpenDrawer: (drawer: 'none' | 'text' | 'draw' | 'highlight') => void
-  toggleDrawer: (drawer: string) => void
-  resetTextTool: () => void
-  
-  // Page display actions
-  toggleMarginGuides: () => void
-  
-  // Zoom actions
-  setZoom: (zoom: number) => void
-  zoomIn: () => void
-  zoomOut: () => void
-  resetZoom: () => void
-  
-  // Page actions
-  setPages: (pages: WorkspacePage[]) => void
-  setCurrentPageIndex: (index: number) => void
-  nextPage: () => void
-  prevPage: () => void
-  jumpToPage: (index: number) => void
-  addPage: (page: WorkspacePage) => void
-  removePage: (index: number) => void
-  
-  // Save state actions
-  setSaveState: (state: WorkspaceState['saveState']) => void
-  setDirty: (dirty: boolean) => void
-  
-  // Tool preferences actions
+  // Actions
+  setActiveTool: (tool: ToolType) => void
   updateToolPref: <K extends keyof ToolPrefs>(key: K, value: ToolPrefs[K]) => void
-  resetToolPrefs: () => void
-  
-  // Recent colors actions
-  addRecentColor: (color: string) => void
-  
-  // Canvas history actions
-  setCanUndo: (canUndo: boolean) => void
-  setCanRedo: (canRedo: boolean) => void
   setExcalidrawAPI: (api: any) => void
   
-  // Canvas operations (requires Excalidraw API)
+  // Page Actions
+  addPage: (title?: string) => void
+  deletePage: (index: number) => void
+  duplicatePage: (index: number) => void
+  jumpToPage: (index: number) => void
+  updatePageTitle: (index: number, title: string) => void
+  updateCurrentPage: (elements: any[], appState: any) => void
+  
+  // Save Actions
+  setSaveState: (state: SaveState) => void
   undo: () => void
   redo: () => void
-  clearCanvas: () => void
-  
-  // Selection and text editing actions
-  setSelectedElementIds: (ids: string[]) => void
-  setEditingTextId: (id: string | null) => void
-  updateTextDefaults: (patch: Partial<TextDefaults>) => void
-  applyTextStyleToSelection: (patch: Partial<TextDefaults>, excalidrawAPI?: any) => void
-  createTextWithPlaceholder: (x?: number, y?: number) => void
+  resetTextTool: () => void
 }
 
-// Default text styling - Classic, simple, readable fonts
-const DEFAULT_TEXT_DEFAULTS: TextDefaults = {
-  fontFamily: 'Times New Roman',
-  fontSize: 24,
-  bold: false,
-  italic: false,
-  underline: false,
-  textColor: '#1a1a1a',
-  backgroundOn: false,
-  backgroundColor: '#ffffff',
-  borderOn: false,
-  borderColor: '#000000',
-  borderThickness: 1,
-  align: 'left'
-}
+// Helper to create a new page
+const createPage = (title: string = 'New Page'): Page => ({
+  id: Math.random().toString(36).slice(2),
+  title,
+  elements: [],
+  appState: {
+    zenModeEnabled: false,
+    viewBackgroundColor: '#ffffff'
+  },
+  createdAt: new Date(),
+  updatedAt: new Date()
+})
 
-// Default tool preferences
-const DEFAULT_TOOL_PREFS: ToolPrefs = {
-  // Draw defaults
-  drawSize: 4,
-  drawColor: '#000000',
-  drawOpacity: 1.0,
-  drawSmoothness: true,
+export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
+  // Initial State
+  pages: [createPage('Page 1')],
+  currentPageIndex: 0,
   
-  // Highlighter defaults
-  highlighterSize: 12,
-  highlighterColor: '#FACC15', // Yellow
-  highlighterOpacity: 0.3,
+  activeTool: 'draw',
+  toolPrefs: {
+    drawColor: '#111827',
+    drawSize: 4,
+    highlighterColor: '#FFF176', 
+    highlighterSize: 12,
+    highlighterOpacity: 0.3,
+    textColor: '#111827',
+    textSize: 24
+  },
   
-  // Text defaults - Classic, readable font at 24pt
-  textSize: 24,
-  textColor: '#1a1a1a',
-  textFamily: '"Times New Roman", Georgia, serif',
-  textBold: false,
-  textItalic: false,
-  textUnderline: false,
-  textAlign: 'left',
-  textLineSpacing: 1.0,
-  textBackgroundColor: '#ffffff',
-  textBackgroundEnabled: false,
-  textBorderEnabled: false,
-  textBorderColor: '#000000',
-  textBorderThickness: 2,
+  excalidrawAPI: null,
+  saveState: 'saved',
+  canUndo: false,
+  canRedo: false,
   
-  // Eraser defaults
-  eraserSize: 8,
-  eraserMode: 'stroke',
-}
-
-// Zoom presets
-export const ZOOM_PRESETS = [0.5, 0.75, 1.0, 1.25, 1.5] as const
-export type ZoomPreset = typeof ZOOM_PRESETS[number]
-
-export type WorkspaceStore = WorkspaceState & WorkspaceActions
-
-// Helper function to migrate tool preferences
-const migrateToolPrefs = (stored: any): ToolPrefs => {
-  const migrated = { ...DEFAULT_TOOL_PREFS }
+  // Basic Actions
+  setActiveTool: (tool) => set({ activeTool: tool }),
   
-  if (stored && typeof stored === 'object') {
-    // Copy over valid preferences, ignore deprecated ones
-    Object.keys(DEFAULT_TOOL_PREFS).forEach(key => {
-      if (stored[key] !== undefined) {
-        (migrated as any)[key] = stored[key]
+  updateToolPref: (key, value) => set(state => ({
+    toolPrefs: { ...state.toolPrefs, [key]: value }
+  })),
+  
+  setExcalidrawAPI: (api) => {
+    console.log('Store: Setting Excalidraw API:', !!api)
+    set({ excalidrawAPI: api })
+  },
+  
+  // Page Management Actions
+  addPage: (title) => {
+    const state = get()
+    
+    // FIRST: Save current page state before creating new page
+    if (state.excalidrawAPI) {
+      try {
+        const elements = state.excalidrawAPI.getSceneElements()
+        const appState = state.excalidrawAPI.getAppState()
+        get().updateCurrentPage(elements, appState)
+        console.log('Saved current page before adding new page')
+      } catch (error) {
+        console.error('Failed to save current page before adding new:', error)
       }
+    }
+    
+    // THEN: Create and add new page
+    const newTitle = title || `Page ${state.pages.length + 1}`
+    const newPage = createPage(newTitle)
+    
+    set(state => ({
+      pages: [...state.pages, newPage],
+      currentPageIndex: state.pages.length,
+      saveState: 'unsaved'
+    }))
+    
+    // FINALLY: Clear canvas for new page after a short delay
+    setTimeout(() => {
+      if (get().excalidrawAPI) {
+        try {
+          get().excalidrawAPI.updateScene({
+            elements: [], // Blank canvas
+            appState: {
+              zenModeEnabled: false,
+              viewBackgroundColor: '#ffffff'
+            }
+          })
+          console.log('New page loaded with blank canvas')
+        } catch (error) {
+          console.error('Failed to load blank canvas for new page:', error)
+        }
+      }
+    }, 100)
+  },
+  
+  deletePage: (index) => {
+    const state = get()
+    if (state.pages.length <= 1) return
+    
+    const newPages = state.pages.filter((_, i) => i !== index)
+    let newCurrentIndex = state.currentPageIndex
+    
+    if (index < state.currentPageIndex) {
+      newCurrentIndex = state.currentPageIndex - 1
+    } else if (index === state.currentPageIndex) {
+      newCurrentIndex = Math.min(state.currentPageIndex, newPages.length - 1)
+    }
+    
+    set({
+      pages: newPages,
+      currentPageIndex: newCurrentIndex,
+      saveState: 'unsaved'
     })
-  }
+  },
   
-  return migrated
-}
-
-export const useWorkspaceStore = create<WorkspaceStore>()(
-  devtools(
-    persist(
-      (set, get) => ({
-        // Initial state
-        activeTool: 'draw',
-        activeDrawer: null,
-        openDrawer: 'none',
-        zoom: 1.0,
-        showMarginGuides: true,
-        pages: [],
-        currentPageIndex: 0,
-        saveState: 'saved',
-        isDirty: false,
-        toolPrefs: DEFAULT_TOOL_PREFS,
-        recentColors: [],
-        canUndo: false,
-        canRedo: false,
-        excalidrawAPI: null,
-        selectedElementIds: [],
-        editingTextId: null,
-        textDefaults: DEFAULT_TEXT_DEFAULTS,
-
-        // Tool actions
-        setActiveTool: (tool) => {
-          const { openDrawer } = get()
-          
-          // Determine if this tool should open a drawer
-          const shouldOpenDrawer = ['text', 'draw', 'highlighter'].includes(tool)
-          const newDrawerState = shouldOpenDrawer ? tool as 'text' | 'draw' | 'highlight' : 'none'
-          
-          set({ 
-            activeTool: tool,
-            openDrawer: newDrawerState
-          }, false, 'setActiveTool')
-        },
-
-        setActiveDrawer: (drawer) => set({ activeDrawer: drawer }, false, 'setActiveDrawer'),
-
-        setOpenDrawer: (drawer) => set({ openDrawer: drawer }, false, 'setOpenDrawer'),
-
-        toggleDrawer: (drawer) => {
-          const { openDrawer } = get()
-          set({ 
-            openDrawer: openDrawer === drawer ? 'none' : drawer as 'text' | 'draw' | 'highlight'
-          }, false, 'toggleDrawer')
-        },
-
-        // Page display actions
-        toggleMarginGuides: () => {
-          const { showMarginGuides } = get()
-          set({ showMarginGuides: !showMarginGuides }, false, 'toggleMarginGuides')
-        },
-
-        // Zoom actions
-        setZoom: (zoom) => set({ zoom: Math.max(0.1, Math.min(3.0, zoom)) }, false, 'setZoom'),
-
-        zoomIn: () => {
-          const { zoom } = get()
-          const currentIndex = ZOOM_PRESETS.findIndex(preset => preset >= zoom)
-          const nextZoom = currentIndex >= 0 && currentIndex < ZOOM_PRESETS.length - 1 
-            ? ZOOM_PRESETS[currentIndex + 1] 
-            : Math.min(zoom * 1.25, 3.0)
-          set({ zoom: nextZoom }, false, 'zoomIn')
-        },
-
-        zoomOut: () => {
-          const { zoom } = get()
-          const currentIndex = ZOOM_PRESETS.findIndex(preset => preset >= zoom)
-          const prevZoom = currentIndex > 0 
-            ? ZOOM_PRESETS[currentIndex - 1] 
-            : Math.max(zoom / 1.25, 0.1)
-          set({ zoom: prevZoom }, false, 'zoomOut')
-        },
-
-        resetZoom: () => set({ zoom: 1.0 }, false, 'resetZoom'),
-
-        // Page actions
-        setPages: (pages) => set({ pages }, false, 'setPages'),
-
-        setCurrentPageIndex: (index) => {
-          const { pages } = get()
-          if (index >= 0 && index < pages.length) {
-            set({ currentPageIndex: index }, false, 'setCurrentPageIndex')
-          }
-        },
-
-        nextPage: () => {
-          const { pages, currentPageIndex } = get()
-          if (currentPageIndex < pages.length - 1) {
-            set({ currentPageIndex: currentPageIndex + 1 }, false, 'nextPage')
-          }
-        },
-
-        prevPage: () => {
-          const { currentPageIndex } = get()
-          if (currentPageIndex > 0) {
-            set({ currentPageIndex: currentPageIndex - 1 }, false, 'prevPage')
-          }
-        },
-
-        jumpToPage: (index) => {
-          const { pages } = get()
-          if (index >= 0 && index < pages.length) {
-            set({ currentPageIndex: index }, false, 'jumpToPage')
-          }
-        },
-
-        addPage: (page) => {
-          const { pages, currentPageIndex } = get()
-          const newPages = [...pages]
-          newPages.splice(currentPageIndex + 1, 0, page)
-          set({ 
-            pages: newPages,
-            currentPageIndex: currentPageIndex + 1,
-            isDirty: true
-          }, false, 'addPage')
-        },
-
-        removePage: (index) => {
-          const { pages, currentPageIndex } = get()
-          if (pages.length > 1 && index >= 0 && index < pages.length) {
-            const newPages = pages.filter((_, i) => i !== index)
-            const newCurrentIndex = index <= currentPageIndex && currentPageIndex > 0 
-              ? currentPageIndex - 1 
-              : Math.min(currentPageIndex, newPages.length - 1)
-            
-            set({ 
-              pages: newPages,
-              currentPageIndex: newCurrentIndex,
-              isDirty: true
-            }, false, 'removePage')
-          }
-        },
-
-        // Save state actions
-        setSaveState: (saveState) => set({ saveState }, false, 'setSaveState'),
-
-        setDirty: (isDirty) => {
-          set({ 
-            isDirty,
-            saveState: isDirty ? 'unsaved' : 'saved'
-          }, false, 'setDirty')
-        },
-
-        // Tool preferences actions
-        updateToolPref: (key, value) => {
-          const { toolPrefs } = get()
-          // Filter out deprecated preferences
-          const validKeys = Object.keys(DEFAULT_TOOL_PREFS)
-          if (validKeys.includes(key)) {
-            set({ 
-              toolPrefs: { ...toolPrefs, [key]: value }
-            }, false, 'updateToolPref')
-          }
-        },
-
-        resetToolPrefs: () => set({ toolPrefs: DEFAULT_TOOL_PREFS }, false, 'resetToolPrefs'),
-
-        // Recent colors actions
-        addRecentColor: (color) => {
-          const { recentColors } = get()
-          // Remove color if it already exists, then add to front
-          const filteredColors = recentColors.filter(c => c !== color)
-          const newRecentColors = [color, ...filteredColors].slice(0, 6)
-          set({ recentColors: newRecentColors }, false, 'addRecentColor')
-        },
-
-        // Canvas history actions
-        setCanUndo: (canUndo) => set({ canUndo }, false, 'setCanUndo'),
-        setCanRedo: (canRedo) => set({ canRedo }, false, 'setCanRedo'),
-        setExcalidrawAPI: (excalidrawAPI) => set({ excalidrawAPI }, false, 'setExcalidrawAPI'),
-        
-        // Text tool reset for new text box creation - KEY FIX for multiple text boxes
-        resetTextTool: () => {
-          const { excalidrawAPI } = get()
-          
-          // Clear text editing state
-          set({ 
-            editingTextId: null,
-            selectedElementIds: []
-          }, false, 'resetTextTool')
-          
-          // Force Excalidraw to exit any text editing mode and reinitialize text tool
-          if (excalidrawAPI) {
-            try {
-              // First, temporarily switch to selection tool to clear any text editing state
-              excalidrawAPI.setActiveTool({ type: 'selection' })
-              
-              // Then switch back to text tool to enable new text creation
-              setTimeout(() => {
-                if (excalidrawAPI.setActiveTool) {
-                  excalidrawAPI.setActiveTool({ type: 'text' })
-                  console.log('✅ Text tool reset for new text box creation')
-                }
-              }, 50)
-            } catch (error) {
-              console.error('❌ Text tool reset failed:', error)
-            }
-          }
-        },
-        
-        // Canvas operations
-        undo: () => {
-          const { excalidrawAPI } = get()
-          if (!excalidrawAPI) {
-            console.warn('Undo failed: Excalidraw API not available')
-            return
-          }
-          
-          try {
-            if (excalidrawAPI.history?.undo) {
-              excalidrawAPI.history.undo()
-              console.log('✅ Undo performed')
-            } else {
-              console.warn('Undo not available - no history API')
-            }
-          } catch (error) {
-            console.error('❌ Error performing undo:', error)
-            // Fallback: try direct undo if available
-            try {
-              if (excalidrawAPI.undo) {
-                excalidrawAPI.undo()
-              }
-            } catch (fallbackError) {
-              console.error('❌ Fallback undo also failed:', fallbackError)
-            }
-          }
-        },
-        
-        redo: () => {
-          const { excalidrawAPI } = get()
-          if (!excalidrawAPI) {
-            console.warn('Redo failed: Excalidraw API not available')
-            return
-          }
-          
-          try {
-            if (excalidrawAPI.history?.redo) {
-              excalidrawAPI.history.redo()
-              console.log('✅ Redo performed')
-            } else {
-              console.warn('Redo not available - no history API')
-            }
-          } catch (error) {
-            console.error('❌ Error performing redo:', error)
-            // Fallback: try direct redo if available
-            try {
-              if (excalidrawAPI.redo) {
-                excalidrawAPI.redo()
-              }
-            } catch (fallbackError) {
-              console.error('❌ Fallback redo also failed:', fallbackError)
-            }
-          }
-        },
-        
-        clearCanvas: () => {
-          const { excalidrawAPI, pages, currentPageIndex } = get()
-          
-          if (!excalidrawAPI) {
-            console.warn('Clear canvas failed: Excalidraw API not available')
-            return
-          }
-          
-          if (!pages[currentPageIndex]) {
-            console.warn('Clear canvas failed: No current page')
-            return
-          }
-          
-          try {
-            // Confirm with user (optional - you can remove this if you want instant clear)
-            const shouldClear = confirm('Are you sure you want to clear the entire canvas? This action cannot be undone.')
-            if (!shouldClear) {
-              return
-            }
-            
-            excalidrawAPI.updateScene({ 
-              elements: [],
-              commitToHistory: true
-            })
-            
-            // Update the page data
-            const updatedPages = [...pages]
-            if (updatedPages[currentPageIndex]) {
-              updatedPages[currentPageIndex] = {
-                ...updatedPages[currentPageIndex],
-                scene: {
-                  elements: [],
-                  appState: {
-                    viewBackgroundColor: '#ffffff',
-                  },
-                }
-              }
-              set({ pages: updatedPages, isDirty: true }, false, 'clearCanvas')
-            }
-            
-            console.log('✅ Canvas cleared successfully')
-          } catch (error) {
-            console.error('❌ Error clearing canvas:', error)
-            // Show user-friendly error message
-            alert('Failed to clear canvas. Please try again or refresh the page.')
-          }
-        },
-        
-        // Selection and text editing actions
-        setSelectedElementIds: (selectedElementIds) => {
-          // Ensure we always store an array
-          const safeIds = Array.isArray(selectedElementIds) ? selectedElementIds : []
-          
-          // Prevent infinite loops by checking if the value actually changed
-          const currentIds = get().selectedElementIds
-          if (JSON.stringify(currentIds) === JSON.stringify(safeIds)) {
-            return // No change, don't trigger update
-          }
-          
-          set({ selectedElementIds: safeIds }, false, 'setSelectedElementIds')
-        },
-        setEditingTextId: (editingTextId) => set({ editingTextId }, false, 'setEditingTextId'),
-        
-        updateTextDefaults: (patch) => {
-          const { textDefaults } = get()
-          set({ 
-            textDefaults: { ...textDefaults, ...patch }
-          }, false, 'updateTextDefaults')
-        },
-        
-        applyTextStyleToSelection: (patch, excalidrawAPI) => {
-          const { selectedElementIds, editingTextId, textDefaults } = get()
-          
-          // Ensure selectedElementIds is always an array (safety fix)
-          const safeSelectedIds = Array.isArray(selectedElementIds) ? selectedElementIds : []
-          
-          if (!excalidrawAPI) {
-            // No API available, just update defaults
-            const newDefaults = { ...textDefaults, ...patch }
-            set({ textDefaults: newDefaults }, false, 'applyTextStyleToSelection-defaultsOnly')
-            return
-          }
-          
-          try {
-            const elements = excalidrawAPI.getSceneElements()
-            const selectedTextElements = elements.filter((el: any) => 
-              safeSelectedIds.includes(el.id) && el.type === 'text'
-            )
-            
-            // If no elements selected but we're editing a text element, target that element
-            let targetElements = selectedTextElements
-            let isEditingTarget = false
-            
-            if (selectedTextElements.length === 0 && editingTextId) {
-              const editingElement = elements.find((el: any) => el.id === editingTextId && el.type === 'text')
-              if (editingElement) {
-                targetElements = [editingElement]
-                isEditingTarget = true
-              }
-            }
-            
-            console.log('🎨 Applying text style:', {
-              patch,
-              targetElementsCount: targetElements.length,
-              isEditingTarget,
-              hasAPI: !!excalidrawAPI,
-              elementCount: elements.length
-            })
-            
-            if (targetElements.length > 0) {
-              // Apply to target text elements (selected or editing)
-              const targetElementIds = targetElements.map((el: any) => el.id)
-              const updatedElements = elements.map((el: any) => {
-                if (targetElementIds.includes(el.id) && el.type === 'text') {
-                  const updatedElement = { ...el }
-                  
-                  // Map patch properties to Excalidraw element properties
-                  if (patch.fontSize !== undefined) updatedElement.fontSize = patch.fontSize
-                  if (patch.fontFamily !== undefined) updatedElement.fontFamily = patch.fontFamily
-                  if (patch.bold !== undefined) {
-                    updatedElement.fontWeight = patch.bold ? 'bold' : 'normal'
-                  }
-                  if (patch.italic !== undefined) {
-                    updatedElement.fontStyle = patch.italic ? 'italic' : 'normal'
-                  }
-                  if (patch.align !== undefined) updatedElement.textAlign = patch.align
-                  
-                  // Handle background properties
-                  if (patch.backgroundOn !== undefined) {
-                    updatedElement.backgroundColor = patch.backgroundOn ? (patch.backgroundColor || textDefaults.backgroundColor) : 'transparent'
-                  }
-                  if (patch.backgroundColor !== undefined && textDefaults.backgroundOn) {
-                    updatedElement.backgroundColor = patch.backgroundColor
-                  }
-                  
-                  // Handle border and text color together (both use strokeColor in Excalidraw)
-                  // Determine the final border and text color state
-                  const finalBorderOn = patch.borderOn !== undefined ? patch.borderOn : textDefaults.borderOn
-                  const finalTextColor = patch.textColor !== undefined ? patch.textColor : textDefaults.textColor
-                  const finalBorderColor = patch.borderColor !== undefined ? patch.borderColor : textDefaults.borderColor
-                  
-                  console.log('🎨 Text color mapping:', {
-                    elementId: updatedElement.id,
-                    finalBorderOn,
-                    finalTextColor,
-                    finalBorderColor,
-                    originalStrokeColor: el.strokeColor,
-                    originalStrokeWidth: el.strokeWidth
-                  })
-                  
-                  if (finalBorderOn) {
-                    // Border is on - strokeColor becomes border color, text uses default styling
-                    updatedElement.strokeColor = finalBorderColor
-                    updatedElement.strokeWidth = 1
-                    updatedElement.strokeStyle = 'solid'
-                  } else {
-                    // No border - strokeColor becomes text color
-                    updatedElement.strokeColor = finalTextColor
-                    updatedElement.strokeWidth = 0
-                    updatedElement.strokeStyle = 'solid'
-                  }
-                  
-                  console.log('🎨 Updated element properties:', {
-                    elementId: updatedElement.id,
-                    newStrokeColor: updatedElement.strokeColor,
-                    newStrokeWidth: updatedElement.strokeWidth,
-                    newStrokeStyle: updatedElement.strokeStyle
-                  })
-                  
-                  // Let Excalidraw handle the layout recalculation naturally.
-                  // Forcing it by nulling width/height is unstable.
-                  
-                  return updatedElement
-                }
-                return el
-              })
-              
-              console.log('🔄 Updating Excalidraw scene with modified elements:', {
-                totalElements: updatedElements.length,
-                modifiedElements: updatedElements.filter(el => targetElementIds.includes(el.id)).length,
-                targetElementIds
-              })
-              
-              excalidrawAPI.updateScene({ 
-                elements: updatedElements,
-                commitToHistory: !isEditingTarget // Don't add to history during editing
-              })
-              
-              // After updating the scene, give Excalidraw a moment to process
-              // the changes before we might need to read the updated element state.
-              setTimeout(() => {
-                if (excalidrawAPI && excalidrawAPI.refresh) {
-                  excalidrawAPI.refresh();
-                }
-              }, 50);
-
-              if (isEditingTarget) {
-                console.log(`✅ Applied style to editing text element: ${editingTextId}`)
-              } else {
-                console.log(`✅ Applied style to ${targetElements.length} selected text elements`)
-              }
-            } else {
-              // No text elements selected, update defaults
-              const newDefaults = { ...textDefaults, ...patch }
-              set({ textDefaults: newDefaults }, false, 'applyTextStyleToSelection-defaults')
-              console.log('📝 Updated text defaults:', newDefaults)
-            }
-          } catch (error) {
-            console.error('Error applying text style:', error)
-          }
-        },
-
-        createTextWithPlaceholder: (x = 300, y = 200) => {
-          console.log('🚀 createTextWithPlaceholder called with coordinates:', { x, y })
-          const { excalidrawAPI, textDefaults, setActiveTool, setEditingTextId } = get()
-          
-          if (!excalidrawAPI) {
-            console.warn('❌ Cannot create text: Excalidraw API not available')
-            return
-          }
-          
-          console.log('✅ Excalidraw API available, creating text element...')
-
-          try {
-            // Generate a unique ID for the new text element
-            const newTextId = `text_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-            
-            // Create a new text element with "Write!" placeholder
-            const newTextElement = {
-              id: newTextId,
-              type: 'text',
-              x: x,
-              y: y,
-              width: 100, // Will be recalculated by Excalidraw
-              height: 25, // Will be recalculated by Excalidraw
-              angle: 0,
-              color: textDefaults.textColor, // Text color using color property
-              strokeColor: textDefaults.borderOn ? textDefaults.borderColor : textDefaults.textColor, // Border color or fallback to text color
-              backgroundColor: textDefaults.backgroundOn ? textDefaults.backgroundColor : 'transparent',
-              fillStyle: 'solid',
-              strokeWidth: textDefaults.borderOn ? textDefaults.borderThickness : 0,
-              strokeStyle: 'solid',
-              roughness: 1,
-              opacity: 100,
-              text: 'Write!',
-              fontSize: textDefaults.fontSize,
-              fontFamily: textDefaults.fontFamily,
-              textAlign: textDefaults.align,
-              verticalAlign: 'top',
-              baseline: 0,
-              containerId: null,
-              originalText: 'Write!',
-              groupIds: [],
-              frameId: null,
-              roundness: null,
-              seed: Math.floor(Math.random() * 2147483647),
-              versionNonce: Math.floor(Math.random() * 2147483647),
-              isDeleted: false,
-              boundElements: null,
-              updated: Date.now(),
-              link: null,
-              locked: false
-            }
-
-            // Get current elements and add the new text element
-            const currentElements = excalidrawAPI.getSceneElements()
-            const updatedElements = [...currentElements, newTextElement]
-
-            // Update the scene
-            excalidrawAPI.updateScene({
-              elements: updatedElements,
-              commitToHistory: true
-            })
-
-            // Switch to text tool and start editing the new element
-            setActiveTool('text')
-            
-            // Start editing the new text element after a small delay
-            setTimeout(() => {
-              if (excalidrawAPI) {
-                try {
-                  // Set the text tool active and start editing
-                  excalidrawAPI.setActiveTool({ type: 'text' })
-                  
-                  // Enter editing mode for the new text element
-                  excalidrawAPI.updateScene({
-                    appState: {
-                      editingElement: newTextElement,
-                      selectedElementIds: { [newTextId]: true }
-                    }
-                  })
-                  
-                  setEditingTextId(newTextId)
-                  console.log('✅ Created text element with "Write!" placeholder and started editing')
-                } catch (error) {
-                  console.error('❌ Failed to start editing new text element:', error)
-                }
-              }
-            }, 100)
-
-          } catch (error) {
-            console.error('❌ Error creating text with placeholder:', error)
-          }
-        },
-      }),
-      {
-        name: 'workspace-tool-prefs',
-        // Only persist tool preferences and recent colors
-        partialize: (state) => ({
-          toolPrefs: state.toolPrefs,
-          recentColors: state.recentColors,
-        }),
-        // Migrate old preferences when loading from storage
-        migrate: (persistedState: any, version: number) => {
-          if (persistedState && persistedState.toolPrefs) {
-            persistedState.toolPrefs = migrateToolPrefs(persistedState.toolPrefs)
-          }
-          return persistedState
-        },
-        version: 1, // Increment when making breaking changes
-      }
-    ),
-    {
-      name: 'workspace-store',
-    }
-  )
-)
-
-// Helper hooks for specific tool preferences
-export const useDrawPrefs = () => {
-  const { toolPrefs, updateToolPref } = useWorkspaceStore()
-  return {
-    size: toolPrefs.drawSize,
-    color: toolPrefs.drawColor,
-    opacity: toolPrefs.drawOpacity,
-    smoothness: toolPrefs.drawSmoothness,
-    updateSize: (size: number) => updateToolPref('drawSize', size),
-    updateColor: (color: string) => updateToolPref('drawColor', color),
-    updateOpacity: (opacity: number) => updateToolPref('drawOpacity', opacity),
-    updateSmoothness: (smoothness: boolean) => updateToolPref('drawSmoothness', smoothness),
-  }
-}
-
-export const useHighlighterPrefs = () => {
-  const { toolPrefs, updateToolPref } = useWorkspaceStore()
-  return {
-    size: toolPrefs.highlighterSize,
-    color: toolPrefs.highlighterColor,
-    opacity: toolPrefs.highlighterOpacity,
-    updateSize: (size: number) => updateToolPref('highlighterSize', size),
-    updateColor: (color: string) => updateToolPref('highlighterColor', color),
-    updateOpacity: (opacity: number) => updateToolPref('highlighterOpacity', opacity),
-  }
-}
-
-export const useTextPrefs = () => {
-  const { toolPrefs, updateToolPref } = useWorkspaceStore()
-  return {
-    size: toolPrefs.textSize,
-    color: toolPrefs.textColor,
-    family: toolPrefs.textFamily,
-    bold: toolPrefs.textBold,
-    italic: toolPrefs.textItalic,
-    underline: toolPrefs.textUnderline,
-    align: toolPrefs.textAlign,
-    updateSize: (size: number) => updateToolPref('textSize', size),
-    updateColor: (color: string) => updateToolPref('textColor', color),
-    updateFamily: (family: string) => updateToolPref('textFamily', family),
-    updateBold: (bold: boolean) => updateToolPref('textBold', bold),
-    updateItalic: (italic: boolean) => updateToolPref('textItalic', italic),
-    updateUnderline: (underline: boolean) => updateToolPref('textUnderline', underline),
-    updateAlign: (align: 'left' | 'center' | 'right') => updateToolPref('textAlign', align),
-  }
-}
-
-export const useEraserPrefs = () => {
-  const { toolPrefs, updateToolPref } = useWorkspaceStore()
-  return {
-    size: toolPrefs.eraserSize,
-    mode: toolPrefs.eraserMode,
-    updateSize: (size: number) => updateToolPref('eraserSize', size),
-    updateMode: (mode: 'stroke' | 'object') => updateToolPref('eraserMode', mode),
-  }
-}
-
-// Selection-aware text style hooks
-export const useTextSelection = () => {
-  const { selectedElementIds, setSelectedElementIds, applyTextStyleToSelection } = useWorkspaceStore()
-  return {
-    selectedElementIds,
-    setSelectedElementIds,
-    applyTextStyleToSelection
-  }
-}
-
-export const useDerivedTextStyle = (excalidrawAPI?: any) => {
-  const { selectedElementIds, editingTextId, textDefaults } = useWorkspaceStore()
+  duplicatePage: (index) => {
+    const state = get()
+    const sourcePage = state.pages[index]
+    if (!sourcePage) return
+    
+    const duplicatedPage = createPage(`${sourcePage.title} (Copy)`)
+    duplicatedPage.elements = [...sourcePage.elements]
+    duplicatedPage.appState = { ...sourcePage.appState }
+    
+    const newPages = [...state.pages]
+    newPages.splice(index + 1, 0, duplicatedPage)
+    
+    set({
+      pages: newPages,
+      currentPageIndex: index + 1,
+      saveState: 'unsaved'
+    })
+  },
   
-  // Ensure selectedElementIds is always an array (safety fix)
-  const safeSelectedIds = Array.isArray(selectedElementIds) ? selectedElementIds : []
+  jumpToPage: (index) => {
+    const state = get()
+    if (index < 0 || index >= state.pages.length) {
+      console.warn('Invalid page index:', index)
+      return
+    }
+    
+    // If we're already on this page, do nothing
+    if (index === state.currentPageIndex) {
+      return
+    }
+    
+    // Save current page state before switching
+    if (state.excalidrawAPI) {
+      try {
+        const elements = state.excalidrawAPI.getSceneElements()
+        const appState = state.excalidrawAPI.getAppState()
+        
+        // Only save if we have actual content
+        if (elements && appState) {
+          get().updateCurrentPage(elements, appState)
+          console.log(`Saved page ${state.currentPageIndex + 1} before switching to page ${index + 1}`)
+        }
+      } catch (error) {
+        console.error('Failed to save current page before switch:', error)
+      }
+    }
+    
+    // Update current page index
+    set({ currentPageIndex: index })
+    
+    // Load the new page into Excalidraw
+    const newPage = state.pages[index]
+    if (state.excalidrawAPI && newPage) {
+      setTimeout(() => {
+        try {
+          state.excalidrawAPI.updateScene({
+            elements: newPage.elements || [],
+            appState: {
+              ...newPage.appState,
+              zenModeEnabled: false,
+              viewBackgroundColor: '#ffffff'
+            }
+          })
+          console.log(`Loaded page ${index + 1}: ${newPage.title}`)
+        } catch (error) {
+          console.error('Failed to load new page:', error)
+        }
+      }, 50)
+    }
+  },
   
-  if (!excalidrawAPI) {
-    return {
-      derivedStyle: textDefaults || DEFAULT_TEXT_DEFAULTS,
-      isMixed: false,
-      hasSelection: false
-    }
-  }
+  updatePageTitle: (index, title) => {
+    set(state => ({
+      pages: state.pages.map((page, i) => 
+        i === index 
+          ? { ...page, title, updatedAt: new Date() }
+          : page
+      ),
+      saveState: 'unsaved'
+    }))
+  },
   
-  try {
-    const elements = excalidrawAPI.getSceneElements()
-    const selectedTextElements = elements.filter((el: any) => 
-      safeSelectedIds.includes(el.id) && el.type === 'text'
-    )
+  updateCurrentPage: (elements, appState) => {
+    const state = get()
+    const currentIndex = state.currentPageIndex
     
-    // If no elements selected but we're editing a text element, use that for display
-    let targetElements = selectedTextElements
-    let isEditingTarget = false
+    // Set saving state first
+    set({ saveState: 'saving' })
     
-    if (selectedTextElements.length === 0 && editingTextId) {
-      const editingElement = elements.find((el: any) => el.id === editingTextId && el.type === 'text')
-      if (editingElement) {
-        targetElements = [editingElement]
-        isEditingTarget = true
-      }
-    }
+    // Update the page data
+    set(state => ({
+      pages: state.pages.map((page, i) =>
+        i === currentIndex
+          ? { ...page, elements, appState, updatedAt: new Date() }
+          : page
+      )
+    }))
     
-    if (targetElements.length === 0) {
-      // No text selected or editing, return defaults
-      return {
-        derivedStyle: textDefaults || DEFAULT_TEXT_DEFAULTS,
-        isMixed: false,
-        hasSelection: false
-      }
-    }
-    
-    if (targetElements.length === 1) {
-      // Single element (selected or editing), return its properties
-      const element = targetElements[0]
-      return {
-        derivedStyle: {
-          fontFamily: element.fontFamily || textDefaults?.fontFamily || DEFAULT_TEXT_DEFAULTS.fontFamily,
-          fontSize: element.fontSize || textDefaults?.fontSize || DEFAULT_TEXT_DEFAULTS.fontSize,
-          textColor: element.color || textDefaults?.textColor || DEFAULT_TEXT_DEFAULTS.textColor,
-          bold: element.fontWeight === 'bold',
-          italic: element.fontStyle === 'italic',
-          underline: false, // Excalidraw doesn't support underline natively
-          backgroundOn: textDefaults?.backgroundOn || DEFAULT_TEXT_DEFAULTS.backgroundOn,
-          backgroundColor: textDefaults?.backgroundColor || DEFAULT_TEXT_DEFAULTS.backgroundColor,
-          borderOn: textDefaults?.borderOn || DEFAULT_TEXT_DEFAULTS.borderOn,
-          borderColor: textDefaults?.borderColor || DEFAULT_TEXT_DEFAULTS.borderColor,
-          borderThickness: textDefaults?.borderThickness || DEFAULT_TEXT_DEFAULTS.borderThickness,
-          align: element.textAlign || textDefaults?.align || DEFAULT_TEXT_DEFAULTS.align
-        },
-        isMixed: false,
-        hasSelection: true
-      }
-    }
-    
-    // Multiple selection, check for mixed values
-    const firstElement = targetElements[0]
-    const isMixed = targetElements.some((el: any) => 
-      el.fontSize !== firstElement.fontSize ||
-      el.strokeColor !== firstElement.strokeColor ||
-      el.fontFamily !== firstElement.fontFamily ||
-      el.fontWeight !== firstElement.fontWeight ||
-      el.fontStyle !== firstElement.fontStyle ||
-      el.textAlign !== firstElement.textAlign
-    )
-    
-    if (isMixed) {
-      return {
-        derivedStyle: textDefaults || DEFAULT_TEXT_DEFAULTS, // Show defaults when mixed
-        isMixed: true,
-        hasSelection: true
-      }
-    }
-    
-    // All target elements have same values
-    return {
-      derivedStyle: {
-        fontFamily: firstElement.fontFamily || textDefaults?.fontFamily || DEFAULT_TEXT_DEFAULTS.fontFamily,
-        fontSize: firstElement.fontSize || textDefaults?.fontSize || DEFAULT_TEXT_DEFAULTS.fontSize,
-        textColor: firstElement.strokeColor || textDefaults?.textColor || DEFAULT_TEXT_DEFAULTS.textColor,
-        bold: firstElement.fontWeight === 'bold',
-        italic: firstElement.fontStyle === 'italic',
-        underline: false,
-        backgroundOn: textDefaults?.backgroundOn || DEFAULT_TEXT_DEFAULTS.backgroundOn,
-        backgroundColor: textDefaults?.backgroundColor || DEFAULT_TEXT_DEFAULTS.backgroundColor,
-        borderOn: textDefaults?.borderOn || DEFAULT_TEXT_DEFAULTS.borderOn,
-        borderColor: textDefaults?.borderColor || DEFAULT_TEXT_DEFAULTS.borderColor,
-        borderThickness: textDefaults?.borderThickness || DEFAULT_TEXT_DEFAULTS.borderThickness,
-        align: firstElement.textAlign || textDefaults?.align || DEFAULT_TEXT_DEFAULTS.align
-      },
-      isMixed: false,
-      hasSelection: true
-    }
-  } catch (error) {
-    console.error('Error deriving text style:', error)
-    return {
-      derivedStyle: textDefaults || DEFAULT_TEXT_DEFAULTS,
-      isMixed: false,
-      hasSelection: false
-    }
-  }
-}
+    // Simulate save completion and set to saved
+    setTimeout(() => {
+      set({ saveState: 'saved' })
+    }, 500)
+  },
+  
+  // Save Actions
+  setSaveState: (saveState) => set({ saveState }),
+  undo: () => set({ canUndo: false }),
+  redo: () => set({ canRedo: false }), 
+  resetTextTool: () => console.log('Text tool reset')
+}))
