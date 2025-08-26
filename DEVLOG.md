@@ -41,7 +41,7 @@
 ### How to test
 
 1. `pnpm dev -p 3000`
-2. Visit `http://localhost:3000/sd-demo`
+2. Visit `http://localhost:3000/workspace-editor`
 3. Confirm:
 
    * Buttons use brand colors; hover states look right.

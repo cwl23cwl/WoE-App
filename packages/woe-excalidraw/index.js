@@ -1,2 +1,1 @@
-export * from "@excalidraw/excalidraw";
-export { default } from "@excalidraw/excalidraw";
+export { Excalidraw } from "@excalidraw/excalidraw";

@@ -194,7 +194,7 @@ export function ExcalidrawCanvasNative({
     // Dynamically import WoeExcalidraw to avoid SSR issues
     const loadWoeExcalidraw = async () => {
       try {
-        const module = await import('@woe/excalidraw')
+        const module = await import('@woe/excalidraw-wrapper')
         console.log('🔍 WoeExcalidraw module loaded:', module)
         console.log('📋 Available exports:', Object.keys(module))
         
@@ -280,7 +280,7 @@ export function ExcalidrawCanvasNative({
         // Let's try to access it directly from the fork
         try {
           // Try to access the EditorJotaiProvider from WoeExcalidraw's editor-jotai module
-          const editorJotaiPath = '@woe/excalidraw/editor-jotai'
+// //           const editorJotaiPath = '@woe/excalidraw/editor-jotai'
           // @ts-ignore - Dynamic import path
           const editorJotai = await import(editorJotaiPath)
           console.log('📦 EditorJotai module loaded from WoeExcalidraw')
@@ -305,7 +305,7 @@ export function ExcalidrawCanvasNative({
           try {
             // First try to access jotai-scope through the WoeExcalidraw module path
             // This ensures we use the SAME jotai-scope instance
-            const jotaiScopePath = '@woe/excalidraw/node_modules/jotai-scope'
+// //             const jotaiScopePath = '@woe/excalidraw/node_modules/jotai-scope'
             // @ts-ignore - Dynamic import path
             const jotaiScope = await import(jotaiScopePath)
             console.log('📦 jotai-scope imported from WoeExcalidraw path (CRITICAL - same instance)')

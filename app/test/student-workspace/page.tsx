@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { TopToolbar } from '../../../src/features/workspace/TopToolbar'
 import { ToolDrawer } from '../../../src/features/workspace/ToolDrawer'
-import { ExcalidrawCanvasNative } from '../../../components/workspace/ExcalidrawCanvasNative'
+import { FixedStageCanvas } from '../../../components/workspace/FixedStageCanvas'
 import { InstructionsPanel } from '../../../src/features/workspace/InstructionsPanel'
 import { HelpCircle, User, MoreVertical, ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -126,11 +126,9 @@ export default function TestStudentWorkspacePage() {
         sidebarOpen ? 'pr-64 lg:pr-80' : 'pr-4 sm:pr-8'
       }`}>
         <div className="w-full h-full">
-          {/* Canvas Area - Full Available Space */}
-          <div className="w-full h-[calc(100vh-200px)]">
-            <div className="w-full h-full bg-white rounded-2xl shadow-lg border border-neutral-200 canvas-container">
-              <ExcalidrawCanvasNative />
-            </div>
+          {/* Canvas Area - Fixed Stage */}
+          <div className="w-full h-[calc(100vh-200px)] flex justify-center items-start">
+            <FixedStageCanvas className="fixed-stage-test" />
           </div>
         </div>
       </div>

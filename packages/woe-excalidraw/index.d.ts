@@ -1,3 +1,2 @@
-export * from "@excalidraw/excalidraw";
-export { Excalidraw as default } from "@excalidraw/excalidraw";
-export type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw";
+export { Excalidraw } from "@excalidraw/excalidraw";
+export type { ExcalidrawImperativeAPI, AppState, BinaryFiles } from "@excalidraw/excalidraw";

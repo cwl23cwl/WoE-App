@@ -1,0 +1,93 @@
+diff --git a/tsconfig.json b/tsconfig.json
+index abc123..def456 100644
+--- a/tsconfig.json
++++ b/tsconfig.json
+@@
+-    "paths": {
+-      "@/*": ["./*"],
+-      "@excalidraw/excalidraw": ["node_modules/@woe/excalidraw"]
+-    }
++    "paths": {
++      "@/*": ["./*"]
++    }
+ 
+diff --git a/next.config.mjs b/next.config.mjs
+index abc123..def456 100644
+--- a/next.config.mjs
++++ b/next.config.mjs
+@@
+-  transpilePackages: ["@woe/excalidraw"],
++  transpilePackages: ["@woe/excalidraw-wrapper"],
+ 
+diff --git a/app/layout.tsx b/app/layout.tsx
+index abc123..def456 100644
+--- a/app/layout.tsx
++++ b/app/layout.tsx
+@@
+-import "@woe/excalidraw/index.css";
++import "@woe/excalidraw-wrapper/index.css";
+ 
+diff --git a/app/workspace-editor/ExcalCanvasClient.tsx b/app/workspace-editor/ExcalCanvasClient.tsx
+index abc123..def456 100644
+--- a/app/workspace-editor/ExcalCanvasClient.tsx
++++ b/app/workspace-editor/ExcalCanvasClient.tsx
+@@
+-// If you use your fork, change the two lines below to "@woe/excalidraw"
+-import { Excalidraw } from "@woe/excalidraw";
+-import type { ExcalidrawImperativeAPI } from "@woe/excalidraw";
++import { Excalidraw } from "@woe/excalidraw-wrapper";
++import type { ExcalidrawImperativeAPI } from "@woe/excalidraw-wrapper";
+ 
+diff --git a/app/workspace-editor/ExcalidrawBoard.tsx b/app/workspace-editor/ExcalidrawBoard.tsx
+index abc123..def456 100644
+--- a/app/workspace-editor/ExcalidrawBoard.tsx
++++ b/app/workspace-editor/ExcalidrawBoard.tsx
+@@
+-import "@woe/excalidraw/index.css";
++import "@woe/excalidraw-wrapper/index.css";
+@@
+-    const mod: any = await import("@woe/excalidraw");
++    const mod: any = await import("@woe/excalidraw-wrapper");
+ 
+diff --git a/components/workspace/ExcalidrawCanvasNative.tsx b/components/workspace/ExcalidrawCanvasNative.tsx
+index abc123..def456 100644
+--- a/components/workspace/ExcalidrawCanvasNative.tsx
++++ b/components/workspace/ExcalidrawCanvasNative.tsx
+@@
+-        const module = await import('@woe/excalidraw')
++        const module = await import('@woe/excalidraw-wrapper')
+@@
+-          const editorJotaiPath = '@woe/excalidraw/editor-jotai'
++          // const editorJotaiPath = '@woe/excalidraw/editor-jotai' // commented, not exposed
+@@
+-            const jotaiScopePath = '@woe/excalidraw/node_modules/jotai-scope'
++            // const jotaiScopePath = '@woe/excalidraw/node_modules/jotai-scope' // commented, not exposed
+ 
+diff --git a/package.json b/package.json
+index abc123..def456 100644
+--- a/package.json
++++ b/package.json
+@@
+-    "@woe/excalidraw": "workspace:*",
++    "@woe/excalidraw-wrapper": "workspace:*",
+ 
+diff --git a/packages/woe-excalidraw/package.json b/packages/woe-excalidraw/package.json
+index abc123..def456 100644
+--- a/packages/woe-excalidraw/package.json
++++ b/packages/woe-excalidraw/package.json
+@@
+-  "name": "@woe/excalidraw",
++  "name": "@woe/excalidraw-wrapper",
+@@
+-      "default": "./index.js"
++      "import": "./index.js"
+ 
+diff --git a/packages/woe-excalidraw/index.js b/packages/woe-excalidraw/index.js
+index abc123..def456 100644
+--- a/packages/woe-excalidraw/index.js
++++ b/packages/woe-excalidraw/index.js
+@@
+-// (old content likely did a default export or re-export loop)
+-export { default } from "@excalidraw/excalidraw";
++// Thin, safe wrapper: NAMED re-export only (no default)
++export { Excalidraw } from "@excalidraw/excalidraw";

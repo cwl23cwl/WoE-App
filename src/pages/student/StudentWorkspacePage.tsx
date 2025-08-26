@@ -1,7 +1,7 @@
 import React from 'react'
 import { TopToolbar } from '../../features/workspace/TopToolbar'
 import { ToolDrawer } from '../../features/workspace/ToolDrawer'
-import { ExcalidrawCanvasSimple as ExcalidrawCanvasNative } from '../../../components/workspace/ExcalidrawCanvasSimple'
+import { FixedStageCanvasV2 } from '../../../components/workspace/FixedStageCanvasV2'
 import { InstructionsPanel } from '../../features/workspace/InstructionsPanel'
 import { HelpCircle, User, MoreVertical } from 'lucide-react'
 
@@ -72,18 +72,19 @@ export function StudentWorkspacePage() {
       {/* Main Content Area */}
       <div className="flex-1 px-4 sm:px-8 pb-8">
         <div className="flex flex-col xl:flex-row gap-4 xl:gap-6">
-          {/* Canvas Area */}
+          {/* Canvas Area - Fixed Stage */}
           <div 
             className="flex-1 min-w-0" 
             style={{ 
-              minHeight: '400px', 
-              height: '60vh', 
-              maxHeight: '800px',
+              minHeight: '600px', 
+              height: 'auto',
               width: '100%',
-              maxWidth: '1400px'
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'flex-start'
             }}
           >
-            <ExcalidrawCanvasNative className="canvas-container w-full h-full" />
+            <FixedStageCanvasV2 className="fixed-stage-wrapper" />
           </div>
 
           {/* Instructions Panel - Right Side */}

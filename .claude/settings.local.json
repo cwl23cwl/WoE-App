@@ -8,7 +8,12 @@
       "Bash(grep:*)",
       "Bash(yarn build:*)",
       "Bash(npm run dev:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(git checkout:*)",
+      "Bash(curl:*)",
+      "Bash(git add:*)",
+      "Bash(git rm:*)",
+      "Bash(git push:*)"
     ],
     "additionalDirectories": [
       "C:\\Users\\charl\\Desktop\\woe-excalidraw"

@@ -21,9 +21,7 @@
       "@/*": [
         "./*"
       ],
-      "@excalidraw/excalidraw": [
-        "node_modules/@woe/excalidraw"
-      ]
+      
     },
     "incremental": true,
     "plugins": [

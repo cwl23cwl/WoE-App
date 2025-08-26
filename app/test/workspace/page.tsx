@@ -1,6 +1,6 @@
 'use client'
 
-import { ExcalidrawCanvasNative } from '@/components/workspace/ExcalidrawCanvasNative'
+import { FixedStageCanvas } from '@/components/workspace/FixedStageCanvas'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useEffect } from 'react'
 
@@ -53,10 +53,8 @@ export default function WorkspaceTestPage() {
 
       {/* Main canvas area */}
       <main className="flex-1 py-8">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="bg-white shadow-lg rounded-lg border" style={{ height: 'calc(100vh - 200px)' }}>
-            <ExcalidrawCanvasNative />
-          </div>
+        <div className="max-w-7xl mx-auto px-4 flex justify-center">
+          <FixedStageCanvas className="workspace-test-canvas" />
         </div>
       </main>
     </div>

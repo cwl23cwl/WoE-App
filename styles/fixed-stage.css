@@ -1,0 +1,86 @@
+/* Fixed Stage Canvas Styles */
+
+.fixed-stage-container {
+  /* Ensure browser zoom works properly */
+  zoom: 1;
+  /* Disable internal canvas zoom gestures */
+  touch-action: pan-x pan-y;
+}
+
+.fixed-stage {
+  /* Ensure stage maintains aspect ratio on all screen sizes */
+  aspect-ratio: 3/2; /* 1200/800 = 3/2 */
+  
+  /* Responsive scaling for smaller screens */
+  /* This scales the entire stage down if the viewport is too small */
+  max-width: min(1200px, calc(100vw - 80px));
+  max-height: min(800px, calc(100vh - 200px));
+  
+  /* Smooth scaling animation */
+  transition: transform 0.2s ease-out;
+}
+
+/* Prevent Excalidraw from capturing zoom gestures */
+.fixed-stage .excalidraw {
+  /* Block zoom shortcuts */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+/* Override Excalidraw's zoom controls */
+.fixed-stage .excalidraw .App-menu__left,
+.fixed-stage .excalidraw .App-menu__right {
+  /* Hide zoom buttons */
+}
+
+.fixed-stage .excalidraw [data-testid="zoom-in-button"],
+.fixed-stage .excalidraw [data-testid="zoom-out-button"],
+.fixed-stage .excalidraw [data-testid="reset-zoom-button"] {
+  display: none !important;
+}
+
+/* Responsive breakpoints */
+@media (max-width: 1400px) {
+  .fixed-stage {
+    transform: scale(0.9);
+  }
+}
+
+@media (max-width: 1200px) {
+  .fixed-stage {
+    transform: scale(0.8);
+  }
+}
+
+@media (max-width: 1024px) {
+  .fixed-stage {
+    transform: scale(0.7);
+  }
+}
+
+@media (max-width: 768px) {
+  .fixed-stage {
+    transform: scale(0.6);
+  }
+}
+
+@media (max-width: 640px) {
+  .fixed-stage {
+    transform: scale(0.5);
+  }
+}
+
+/* Ensure document scrolling works */
+body {
+  overflow: auto !important;
+}
+
+/* Mobile zoom support */
+@supports (-webkit-touch-callout: none) {
+  .fixed-stage-container {
+    /* Enable pinch-to-zoom on iOS */
+    -webkit-user-scalable: yes;
+    user-scalable: yes;
+  }
+}
