@@ -13,7 +13,6 @@ import {
   RotateCw,
   Save,
   ChevronDown,
-  Palette,
 } from 'lucide-react';
 import { useWorkspaceStore } from '@/stores/useWorkspaceStore';
 import { AccordionToolbar } from './AccordionToolbar';
@@ -88,13 +87,6 @@ const tools: Tool[] = [
 ];
 
 // Quick color swatches for immediate text tool activation
-const QUICK_TEXT_COLORS = [
-  { name: 'Black', hex: '#000000' },
-  { name: 'Red', hex: '#DC2626' },
-  { name: 'Blue', hex: '#2563EB' },
-  { name: 'Green', hex: '#16A34A' },
-  { name: 'Orange', hex: '#EC5D3A' },
-];
 
 interface TopToolbarProps {
   onUndo?: () => void;
@@ -113,62 +105,7 @@ export function TopToolbar({ onUndo, onRedo }: TopToolbarProps) {
   } = useWorkspaceStore();
 
   const [expandedTool, setExpandedTool] = useState<UIToolId | null>(null);
-  const [showQuickColors, setShowQuickColors] = useState(false);
 
-  // Enhanced quick color handler that auto-switches to text tool
-  const handleQuickTextColor = useCallback(
-    (colorHex: string) => {
-      console.log('🎨 Quick text color selected:', colorHex);
-      
-      // Update text color preference
-      updateToolPref('textColor', colorHex);
-      
-      // Check if we have text elements selected
-      let appliedToSelection = false;
-      if (excalidrawAPI) {
-        try {
-          const elements = excalidrawAPI.getSceneElements();
-          const appState = excalidrawAPI.getAppState();
-          const selectedIds = Object.keys(appState?.selectedElementIds || {});
-          const selectedTextElements = elements.filter((el: any) => 
-            selectedIds.includes(el.id) && el.type === 'text'
-          );
-          
-          if (selectedTextElements.length > 0) {
-            // Apply to selected text elements
-            const updatedElements = elements.map((el: any) => {
-              if (selectedIds.includes(el.id) && el.type === 'text') {
-                return { ...el, strokeColor: colorHex };
-              }
-              return el;
-            });
-            
-            excalidrawAPI.updateScene({ 
-              elements: updatedElements,
-              appState: { 
-                currentItemStrokeColor: colorHex,
-                selectedElementIds: appState.selectedElementIds,
-              },
-              commitToHistory: true 
-            });
-            appliedToSelection = true;
-          }
-        } catch (error) {
-          console.error('Error applying color to selection:', error);
-        }
-      }
-      
-      // Auto-switch to text tool if no selection was updated
-      if (!appliedToSelection) {
-        console.log('🔄 Auto-switching to text tool via quick color');
-        handleToolSelect(tools.find(t => t.id === 'text')!);
-        setExpandedTool('text');
-      }
-      
-      setShowQuickColors(false);
-    },
-    [excalidrawAPI, updateToolPref, setActiveTool]
-  );
 
   const hasAPI = !!excalidrawAPI;
   const canUndo = hasAPI;
@@ -389,58 +326,6 @@ export function TopToolbar({ onUndo, onRedo }: TopToolbarProps) {
               })}
             </div>
 
-            {/* QUICK TEXT COLORS - Auto Text Tool Activation */}
-            <div className="relative">
-              <button
-                onClick={() => setShowQuickColors(!showQuickColors)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200
-                  focus:outline-none focus:ring-2 focus:ring-blue-500 border-2 relative
-                  ${showQuickColors ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}
-                `}
-                title="Quick text colors - Auto-switches to text tool"
-                type="button"
-              >
-                <Palette className="w-4 h-4" />
-                <span className="hidden md:inline">Quick Colors</span>
-                <ChevronDown className={`w-3 h-3 transition-transform ${showQuickColors ? 'rotate-180' : ''}`} />
-                
-                {/* Auto-switch indicator */}
-                {activeTool !== 'text' && (
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full flex items-center justify-center">
-                    <TypeIcon className="w-2 h-2 text-white" />
-                  </div>
-                )}
-              </button>
-
-              {/* Quick Colors Dropdown */}
-              {showQuickColors && (
-                <div className="absolute top-full left-0 mt-2 p-3 bg-white rounded-lg border border-gray-200 shadow-lg z-50 min-w-[200px]">
-                  <div className="text-xs text-gray-600 mb-3 text-center">
-                    Click any color to set text color and switch to text tool
-                  </div>
-                  <div className="flex gap-2 justify-center">
-                    {QUICK_TEXT_COLORS.map((color) => (
-                      <button
-                        key={color.hex}
-                        onClick={() => handleQuickTextColor(color.hex)}
-                        className="relative w-8 h-8 rounded-md border-2 border-gray-300 hover:border-gray-400 transition-all hover:scale-110"
-                        style={{ backgroundColor: color.hex }}
-                        title={`${color.name} - Auto-switch to text tool`}
-                        type="button"
-                      >
-                        {/* Auto-switch indicator on each color */}
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 border border-white rounded-full flex items-center justify-center">
-                          <TypeIcon className="w-2 h-2 text-white" />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="text-xs text-center text-gray-500 mt-2">
-                    Or use the full color palette in Text tool →
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* RIGHT: Save Status */}
@@ -470,13 +355,6 @@ export function TopToolbar({ onUndo, onRedo }: TopToolbarProps) {
       {/* Canvas buffer */}
       <div className="canvas-buffer h-8 bg-gradient-to-b from-gray-50 to-white" />
 
-      {/* Click outside to close quick colors */}
-      {showQuickColors && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setShowQuickColors(false)}
-        />
-      )}
 
       <style jsx>{`
         .toolbar-container {

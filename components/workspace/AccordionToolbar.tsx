@@ -1,8 +1,10 @@
 // components/workspace/AccordionToolbar.tsx - Enhanced with auto text tool activation
 'use client';
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useWorkspaceStore } from '@/stores/useWorkspaceStore';
+import { SimplifiedColorPicker } from '@/components/workspace/SimplifiedColorPicker';
 import {
   Type,
   Bold,
@@ -11,9 +13,6 @@ import {
   Palette,
   Square,
   RectangleHorizontal as BorderAll,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
 } from 'lucide-react';
 
 /* ===== constants ===== */
@@ -172,7 +171,8 @@ export function AccordionToolbar({
     updateToolPref, 
     excalidrawAPI, 
     activeTool,
-    setActiveTool 
+    setActiveTool,
+    applyTextStyleToSelection 
   } = useWorkspaceStore(); // Remove .getState() - this was the bug!
 
   // Local state for text tool
@@ -181,36 +181,17 @@ export function AccordionToolbar({
   const [localFontFamily, setLocalFontFamily] = useState<string>('Arial, sans-serif');
   const [isBold, setIsBold] = useState<boolean>(false);
   const [isItalic, setIsItalic] = useState<boolean>(false);
-  const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>('left');
+  const [isUnderline, setIsUnderline] = useState<boolean>(false);
+  const [hasBackground, setHasBackground] = useState<boolean>(false);
+  const [hasBorder, setHasBorder] = useState<boolean>(false);
 
   // Dropdown state
   const [showCustomColorPicker, setShowCustomColorPicker] = useState(false);
+  const [recentColors, setRecentColors] = useState<string[]>([]);
+  const [pickerPosition, setPickerPosition] = useState({ x: 0, y: 0 });
+  const [previewColor, setPreviewColor] = useState<string>('');
+  const paletteButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Selection status for display
-  const [hasSelection, setHasSelection] = useState(false);
-
-  // Check selection periodically just for UI display
-  useEffect(() => {
-    if (!excalidrawAPI || toolType !== 'text') return;
-
-    const checkSelection = () => {
-      try {
-        const appState = excalidrawAPI.getAppState();
-        const elements = excalidrawAPI.getSceneElements();
-        const selectedIds = Object.keys(appState?.selectedElementIds || {});
-        const hasTextSelected = selectedIds.some(id => {
-          const el = elements.find((e: any) => e.id === id);
-          return el && el.type === 'text';
-        });
-        setHasSelection(hasTextSelected);
-      } catch (error) {
-        setHasSelection(false);
-      }
-    };
-
-    const interval = setInterval(checkSelection, 500);
-    return () => clearInterval(interval);
-  }, [excalidrawAPI, toolType]);
 
   // Sync from store
   useEffect(() => {
@@ -220,7 +201,9 @@ export function AccordionToolbar({
       setLocalFontFamily(toolPrefs?.textFamily || 'Arial, sans-serif');
       setIsBold(!!toolPrefs?.textBold);
       setIsItalic(!!toolPrefs?.textItalic);
-      setTextAlign((toolPrefs?.textAlign as 'left' | 'center' | 'right') || 'left');
+      setIsUnderline(!!toolPrefs?.textUnderline);
+      setHasBackground(!!toolPrefs?.textBackground);
+      setHasBorder(!!toolPrefs?.textBorder);
     }
   }, [toolPrefs, toolType]);
 
@@ -279,67 +262,88 @@ export function AccordionToolbar({
     [excalidrawAPI, updateToolPref, setActiveTool, activeTool],
   );
 
-  // Helper function for other text properties
-  const applyTextProperty = useCallback((property: string, value: any) => {
-    if (!excalidrawAPI) return;
 
-    try {
-      const elements = excalidrawAPI.getSceneElements();
-      const appState = excalidrawAPI.getAppState();
-      const selectedIds = Object.keys(appState?.selectedElementIds || {});
-      
-      const updatedElements = elements.map((el: any) => {
-        if (selectedIds.includes(el.id) && el.type === 'text') {
-          return { ...el, [property]: value };
-        }
-        return el;
-      });
-
-      const appStateUpdate: any = {};
-      appStateUpdate[`currentItem${property.charAt(0).toUpperCase() + property.slice(1)}`] = value;
-
-      excalidrawAPI.updateScene({ 
-        elements: updatedElements,
-        appState: {
-          ...appStateUpdate,
-          selectedElementIds: appState.selectedElementIds,
-        },
-        commitToHistory: true 
-      });
-    } catch (error) {
-      console.error('Error applying text property:', error);
+  // Background and border handlers
+  const handleBackgroundToggle = useCallback(() => {
+    const newBackground = !hasBackground;
+    setHasBackground(newBackground);
+    updateToolPref?.('textBackground', newBackground);
+    
+    // Apply to selected elements or set default
+    if (newBackground) {
+      applyTextStyleToSelection({ backgroundColor: '#ffffff' });
+    } else {
+      applyTextStyleToSelection({ backgroundColor: 'transparent' });
     }
-  }, [excalidrawAPI]);
+  }, [hasBackground, updateToolPref, applyTextStyleToSelection]);
+
+  const handleBorderToggle = useCallback(() => {
+    const newBorder = !hasBorder;
+    setHasBorder(newBorder);
+    updateToolPref?.('textBorder', newBorder);
+    
+    // Apply border styling to selected elements
+    if (newBorder) {
+      applyTextStyleToSelection({ borderWidth: 2 });
+    } else {
+      applyTextStyleToSelection({ borderWidth: 0 });
+    }
+  }, [hasBorder, updateToolPref, applyTextStyleToSelection]);
+
+  // Handle adding recent colors
+  const handleAddRecentColor = useCallback((color: string) => {
+    setRecentColors(prev => {
+      const filtered = prev.filter(c => c !== color);
+      return [color, ...filtered].slice(0, 8); // Keep max 8 recent colors
+    });
+  }, []);
+
+  // Calculate position for portal color picker
+  const handleOpenColorPicker = useCallback(() => {
+    if (paletteButtonRef.current) {
+      const rect = paletteButtonRef.current.getBoundingClientRect();
+      setPickerPosition({
+        x: rect.left,
+        y: rect.bottom + 8 // 8px gap below button
+      });
+    }
+    setPreviewColor(localColor); // Set initial preview to current color
+    setShowCustomColorPicker(true);
+  }, [localColor]);
+
+  // Handle color preview (while exploring colors)
+  const handleColorPreview = useCallback((color: string) => {
+    setPreviewColor(color);
+    // Don't apply yet - just preview
+  }, []);
+
+  // Handle color apply (when clicking outside to close)
+  const handleColorApply = useCallback(() => {
+    if (previewColor && previewColor !== localColor) {
+      setLocalColor(previewColor);
+      handleTextColorChange(previewColor);
+      handleAddRecentColor(previewColor);
+    }
+    setShowCustomColorPicker(false);
+  }, [previewColor, localColor, handleTextColorChange, handleAddRecentColor]);
 
   if (!isExpanded || toolType !== 'text') return null;
 
   return (
     <div className={`accordion-toolbar ${className}`}>
       <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-4">
-          <div className="space-y-3">
-            {/* Selection Status Indicator */}
-            {hasSelection && (
-              <div className="flex items-center justify-center">
-                <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                  <span className="text-sm font-medium text-blue-700">
-                    Text Selected - Changes apply immediately
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center justify-center gap-6">
-              {/* Font Controls */}
-              <div className="flex items-center gap-3">
+        <div className="mx-auto max-w-7xl px-8 py-4">
+          {/* Three-section layout: LEFT (Font) | CENTER (Colors) | RIGHT (Background/Border) */}
+          <div className="grid grid-cols-3 items-center gap-8 min-h-[56px]">
+            {/* LEFT SECTION: Font Controls */}
+            <div className="flex items-center gap-3 justify-start">
                 <select
                   value={localFontFamily}
                   onChange={(e) => {
                     const newFamily = e.target.value;
                     setLocalFontFamily(newFamily);
                     updateToolPref?.('textFamily', newFamily);
-                    applyTextProperty('fontFamily', newFamily);
+                    applyTextStyleToSelection({ fontFamily: newFamily });
                   }}
                   className="text-sm px-3 py-2 border border-gray-300 rounded-md bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   style={{ fontFamily: localFontFamily, minWidth: '100px' }}
@@ -351,41 +355,38 @@ export function AccordionToolbar({
                   ))}
                 </select>
 
-                <div className="flex items-center gap-2">
+                {/* Font Size Controls - Improved spacing and intuitive design */}
+                <div className="flex items-center gap-1 bg-gray-50 border border-gray-300 rounded-lg px-1 py-1">
                   <button
                     onClick={() => {
                       const newSize = Math.max(8, localSize - 2);
                       setLocalSize(newSize);
                       updateToolPref?.('textSize', newSize);
-                      applyTextProperty('fontSize', newSize);
+                      applyTextStyleToSelection({ fontSize: newSize });
                     }}
-                    className="w-7 h-7 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm flex items-center justify-center transition-colors"
+                    className="w-6 h-6 rounded-md bg-white hover:bg-gray-100 text-gray-600 hover:text-gray-800 text-xs font-medium flex items-center justify-center transition-all border border-gray-200 hover:border-gray-300 shadow-sm"
                     type="button"
+                    title="Decrease font size"
                   >
                     −
                   </button>
-                  <input
-                    type="number"
-                    min={8}
-                    max={72}
-                    value={localSize}
-                    onChange={(e) => {
-                      const newSize = parseInt(e.target.value, 10) || 24;
-                      setLocalSize(newSize);
-                      updateToolPref?.('textSize', newSize);
-                      applyTextProperty('fontSize', newSize);
-                    }}
-                    className="w-14 h-7 text-sm text-center border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  
+                  <div className="flex items-center bg-white border border-gray-200 rounded px-2 py-0.5 min-w-[48px] justify-center">
+                    <span className="text-xs font-medium text-gray-700 select-none">
+                      {localSize}pt
+                    </span>
+                  </div>
+                  
                   <button
                     onClick={() => {
                       const newSize = Math.min(72, localSize + 2);
                       setLocalSize(newSize);
                       updateToolPref?.('textSize', newSize);
-                      applyTextProperty('fontSize', newSize);
+                      applyTextStyleToSelection({ fontSize: newSize });
                     }}
-                    className="w-7 h-7 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm flex items-center justify-center transition-colors"
+                    className="w-6 h-6 rounded-md bg-white hover:bg-gray-100 text-gray-600 hover:text-gray-800 text-xs font-medium flex items-center justify-center transition-all border border-gray-200 hover:border-gray-300 shadow-sm"
                     type="button"
+                    title="Increase font size"
                   >
                     +
                   </button>
@@ -398,7 +399,7 @@ export function AccordionToolbar({
                       const newBold = !isBold;
                       setIsBold(newBold);
                       updateToolPref?.('textBold', newBold);
-                      applyTextProperty('fontWeight', newBold ? 'bold' : 'normal');
+                      applyTextStyleToSelection({ fontWeight: newBold ? 'bold' : 'normal' });
                     }}
                     className={`w-7 h-7 rounded-md font-bold text-sm flex items-center justify-center transition-colors ${
                       isBold ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
@@ -412,7 +413,7 @@ export function AccordionToolbar({
                       const newItalic = !isItalic;
                       setIsItalic(newItalic);
                       updateToolPref?.('textItalic', newItalic);
-                      applyTextProperty('fontStyle', newItalic ? 'italic' : 'normal');
+                      applyTextStyleToSelection({ fontStyle: newItalic ? 'italic' : 'normal' });
                     }}
                     className={`w-7 h-7 rounded-md text-sm flex items-center justify-center transition-colors ${
                       isItalic ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
@@ -421,43 +422,25 @@ export function AccordionToolbar({
                   >
                     <Italic className="w-4 h-4" />
                   </button>
+                  <button
+                    onClick={() => {
+                      const newUnderline = !isUnderline;
+                      setIsUnderline(newUnderline);
+                      updateToolPref?.('textUnderline', newUnderline);
+                      applyTextStyleToSelection({ textDecoration: newUnderline ? 'underline' : 'none' });
+                    }}
+                    className={`w-7 h-7 rounded-md text-sm flex items-center justify-center transition-colors ${
+                      isUnderline ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                    }`}
+                    type="button"
+                  >
+                    <Underline className="w-4 h-4" />
+                  </button>
                 </div>
+            </div>
 
-                {/* Alignment */}
-                <div className="flex gap-1">
-                  {(['left', 'center', 'right'] as const).map((align) => {
-                    const Icon = align === 'left' ? AlignLeft : align === 'center' ? AlignCenter : AlignRight;
-                    return (
-                      <button
-                        key={align}
-                        onClick={() => {
-                          setTextAlign(align);
-                          updateToolPref?.('textAlign', align);
-                          applyTextProperty('textAlign', align);
-                        }}
-                        className={`w-7 h-7 rounded-md text-sm flex items-center justify-center transition-colors ${
-                          textAlign === align ? 'bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                        }`}
-                        type="button"
-                      >
-                        <Icon className="w-4 h-4" />
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Divider */}
-              <div className="h-8 w-px bg-gray-300" />
-
-              {/* ENHANCED: Color application buttons with auto text tool activation */}
-              <div className="flex items-center gap-2">
-                <div className="text-xs font-medium text-gray-600 mb-1">
-                  Click color → Auto-switch to text tool:
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
+            {/* CENTER SECTION: Colors - Centered under main toolbar */}
+            <div className="flex items-center justify-center gap-2 px-4">
                 {[
                   { name: 'Black', hex: '#000000' },
                   { name: 'Red', hex: '#DC2626' },
@@ -483,6 +466,7 @@ export function AccordionToolbar({
                         
                         setLocalColor(color.hex);
                         handleTextColorChange(color.hex);
+                        handleAddRecentColor(color.hex);
                       }}
                       className={`h-8 w-8 rounded-md border-2 transition-all hover:scale-110 relative ${
                         selected ? 'border-blue-500 ring-2 ring-blue-200 scale-105' : 'border-gray-300 hover:border-gray-400'
@@ -501,10 +485,50 @@ export function AccordionToolbar({
                   );
                 })}
 
+                {/* Subtle divider before recent colors */}
+                {recentColors.length > 0 && (
+                  <div className="w-px h-6 bg-gray-300 mx-1" />
+                )}
+
+                {/* Recent Colors - Show last 2 recent colors */}
+                {recentColors.slice(0, 2).map((color, index) => {
+                  const selected = color === localColor;
+                  return (
+                    <button
+                      key={`recent-${index}-${color}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        setLocalColor(color);
+                        handleTextColorChange(color);
+                        handleAddRecentColor(color);
+                      }}
+                      className={`h-8 w-8 rounded-md border-2 transition-all hover:scale-110 relative ${
+                        selected ? 'border-blue-500 ring-2 ring-blue-200 scale-105' : 'border-gray-300 hover:border-gray-400'
+                      }`}
+                      style={{ backgroundColor: color }}
+                      title={`Recent color - Click to set color and switch to text tool`}
+                      type="button"
+                    >
+                      {/* Recent indicator */}
+                      <div className="absolute -top-1 -left-1 w-3 h-3 bg-purple-500 border border-white rounded-full" />
+                      
+                      {/* Auto-switch indicator */}
+                      {!selected && activeTool !== 'text' && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 border border-white rounded-full flex items-center justify-center">
+                          <Type className="w-2 h-2 text-white" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+
                 {/* Custom Color Picker with Auto Text Tool */}
                 <div className="relative">
                   <button
-                    onClick={() => setShowCustomColorPicker((s) => !s)}
+                    ref={paletteButtonRef}
+                    onClick={handleOpenColorPicker}
                     className="h-8 w-8 rounded-md border-2 border-gray-300 hover:border-gray-400 bg-white flex items-center justify-center transition-all hover:scale-110 relative"
                     title="Custom color - Auto-switches to text tool"
                     type="button"
@@ -517,75 +541,96 @@ export function AccordionToolbar({
                     )}
                   </button>
 
-                  {showCustomColorPicker && (
-                    <div className="absolute top-full left-0 mt-2 p-3 bg-white rounded-lg border border-gray-200 shadow-lg z-50">
-                      <div className="mb-2 text-xs text-gray-600">
-                        Selecting color will switch to text tool automatically
-                      </div>
-                      <div className="grid grid-cols-6 gap-2 mb-3">
-                        {TEXT_COLORS.slice(5).map((color) => (
-                          <button
-                            key={color.hex}
-                            onClick={() => {
-                              setLocalColor(color.hex);
-                              handleTextColorChange(color.hex);
-                              setShowCustomColorPicker(false);
-                            }}
-                            className={`h-6 w-6 rounded border-2 transition-all hover:scale-110 ${
-                              localColor === color.hex ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-300'
-                            }`}
-                            style={{ backgroundColor: color.hex }}
-                            title={`${color.name} - Auto-switch to text tool`}
-                            type="button"
-                          />
-                        ))}
-                      </div>
-                      <input
-                        type="color"
-                        value={localColor}
-                        onChange={(e) => {
-                          setLocalColor(e.target.value);
-                          handleTextColorChange(e.target.value);
-                          setShowCustomColorPicker(false);
-                        }}
-                        className="w-full h-8 rounded border border-gray-300 cursor-pointer"
-                        title="Custom color picker - Auto-switch to text tool"
-                      />
-                    </div>
-                  )}
                 </div>
-              </div>
+            </div>
 
-              {/* Preview */}
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-px bg-gray-300" />
-                <div
-                  className="px-3 py-1 rounded text-sm select-none"
-                  style={{
-                    fontFamily: localFontFamily,
-                    fontSize: `${Math.min(localSize * 0.6, 16)}px`,
-                    fontWeight: isBold ? 'bold' : 'normal',
-                    fontStyle: isItalic ? 'italic' : 'normal',
-                    color: localColor,
-                    textAlign,
-                    minWidth: '60px',
-                  }}
-                  title="Live preview"
+            {/* RIGHT SECTION: Background and Border Controls */}
+            <div className="flex items-center justify-end gap-3 px-2">
+                {/* Background Fill Toggle */}
+                <button
+                  onClick={handleBackgroundToggle}
+                  className={`w-8 h-8 rounded-md text-sm flex items-center justify-center transition-colors border-2 ${
+                    hasBackground 
+                      ? 'bg-blue-500 text-white border-blue-500' 
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300 hover:border-gray-400'
+                  }`}
+                  title={hasBackground ? "Remove background fill" : "Add background fill"}
+                  type="button"
                 >
-                  Sample
-                </div>
-              </div>
+                  {/* Custom diagonal stripes square icon */}
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    className="w-4 h-4"
+                  >
+                    <rect
+                      x="1"
+                      y="1"
+                      width="14"
+                      height="14"
+                      rx="1"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      fill={hasBackground ? "currentColor" : "none"}
+                      opacity={hasBackground ? "0.2" : "1"}
+                    />
+                    <g stroke="currentColor" strokeWidth="1.5" opacity="0.8">
+                      <line x1="3" y1="3" x2="7" y2="7" />
+                      <line x1="6" y1="3" x2="13" y2="10" />
+                      <line x1="9" y1="3" x2="13" y2="7" />
+                      <line x1="3" y1="6" x2="10" y2="13" />
+                      <line x1="3" y1="9" x2="7" y2="13" />
+                    </g>
+                  </svg>
+                </button>
+
+                {/* Border Toggle */}
+                <button
+                  onClick={handleBorderToggle}
+                  className={`w-8 h-8 rounded-md text-sm flex items-center justify-center transition-colors ${
+                    hasBorder 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  }`}
+                  title={hasBorder ? "Remove border" : "Add border"}
+                  type="button"
+                >
+                  <BorderAll className="w-4 h-4" />
+                </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Click outside to close dropdowns */}
-      {showCustomColorPicker && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setShowCustomColorPicker(false)}
-        />
+      {/* Portal-based Color Picker */}
+      {showCustomColorPicker && typeof document !== 'undefined' && createPortal(
+        <>
+          {/* Backdrop - Click outside to apply and close */}
+          <div 
+            className="fixed inset-0 z-[9999] bg-black/10" 
+            onClick={handleColorApply}
+          />
+          
+          {/* Color Picker */}
+          <div 
+            className="fixed z-[10000]"
+            style={{
+              left: `${pickerPosition.x}px`,
+              top: `${pickerPosition.y}px`
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <SimplifiedColorPicker
+              value={previewColor || localColor}
+              onChange={handleColorPreview} // Preview only, don't apply
+              onClose={handleColorApply} // Apply when explicitly closing
+              className=""
+            />
+          </div>
+        </>,
+        document.body
       )}
     </div>
   );
