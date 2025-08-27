@@ -1,4 +1,4 @@
-// components/workspace/AccordionToolbar.tsx - FINAL SOLUTION: Immediate selection capture
+// components/workspace/AccordionToolbar.tsx - Enhanced with auto text tool activation
 'use client';
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -50,13 +50,13 @@ interface AccordionToolbarProps {
   className?: string;
 }
 
-/* ===== FINAL: Immediate selection capture functions ===== */
+/* ===== Enhanced color application with immediate text tool activation ===== */
 
 function applyColorDirectlyToSelectedElements(excalidrawAPI: any, color: string): boolean {
   if (!excalidrawAPI) return false;
 
   try {
-    // Get current state immediately - no polling, no delays
+    // Get current state immediately
     const elements = excalidrawAPI.getSceneElements();
     const appState = excalidrawAPI.getAppState();
     const selectedElementIds = Object.keys(appState?.selectedElementIds || {});
@@ -112,6 +112,65 @@ function applyColorDirectlyToSelectedElements(excalidrawAPI: any, color: string)
   }
 }
 
+/* ===== Enhanced color change handler with auto text tool activation ===== */
+
+function createAutoTextToolColorHandler(
+  excalidrawAPI: any,
+  updateToolPref: any,
+  setActiveTool: any,
+  activeTool: string
+) {
+  return (hex: string) => {
+    console.log('🎨 ENHANCED color change with auto text tool:', hex);
+    console.log('🎯 Current active tool:', activeTool);
+    console.log('🔧 setActiveTool function available:', typeof setActiveTool);
+    
+    // Step 1: Update tool preferences
+    updateToolPref?.('textColor', hex);
+    
+    // Step 2: Apply color to any selected elements immediately
+    const appliedToSelection = applyColorDirectlyToSelectedElements(excalidrawAPI, hex);
+    
+    // Step 3: AUTO-SWITCH TO TEXT TOOL if not already active and no selection was updated
+    if (activeTool !== 'text' && !appliedToSelection) {
+      console.log('🔄 Auto-switching to text tool after color selection');
+      
+      // Switch to text tool in Excalidraw
+      if (excalidrawAPI) {
+        try {
+          excalidrawAPI.setActiveTool({ type: 'text' });
+          
+          // Update the app state with the new color
+          excalidrawAPI.updateScene({
+            appState: {
+              activeTool: { type: 'text' },
+              currentItemStrokeColor: hex,
+              currentItemFontSize: 24, // Ensure reasonable default
+            }
+          });
+          
+          console.log('✅ Excalidraw tool set to text with color:', hex);
+        } catch (e) {
+          console.error('Error switching to text tool:', e);
+        }
+      }
+      
+      // Update workspace store - call the function directly
+      console.log('🔄 Calling setActiveTool with text...');
+      setActiveTool('text');
+      
+      console.log('✅ Auto-switched to text tool - ready to create text box');
+    }
+    
+    // Step 4: Provide user feedback
+    if (appliedToSelection) {
+      console.log('✅ Color applied to selected text');
+    } else {
+      console.log('ℹ️ Color set for next text element - text tool activated');
+    }
+  };
+}
+
 /* ===== main component ===== */
 
 export function AccordionToolbar({
@@ -119,7 +178,13 @@ export function AccordionToolbar({
   isExpanded,
   className = '',
 }: AccordionToolbarProps) {
-  const { toolPrefs, updateToolPref, excalidrawAPI, activeTool } = useWorkspaceStore.getState();
+  const { 
+    toolPrefs, 
+    updateToolPref, 
+    excalidrawAPI, 
+    activeTool,
+    setActiveTool 
+  } = useWorkspaceStore(); // Remove .getState() - this was the bug!
 
   // Local state for text tool
   const [localColor, setLocalColor] = useState<string>('#111827');
@@ -132,7 +197,7 @@ export function AccordionToolbar({
   // Dropdown state
   const [showCustomColorPicker, setShowCustomColorPicker] = useState(false);
 
-  // Selection status for display (simplified)
+  // Selection status for display
   const [hasSelection, setHasSelection] = useState(false);
 
   // Check selection periodically just for UI display
@@ -154,7 +219,6 @@ export function AccordionToolbar({
       }
     };
 
-    // Check less frequently to reduce console spam
     const interval = setInterval(checkSelection, 500);
     return () => clearInterval(interval);
   }, [excalidrawAPI, toolType]);
@@ -171,43 +235,100 @@ export function AccordionToolbar({
     }
   }, [toolPrefs, toolType]);
 
-  // FINAL: Immediate color change handler
+  // ENHANCED: Create the auto text tool color handler
   const handleTextColorChange = useCallback(
     (hex: string) => {
-      console.log('🎨 IMMEDIATE color change handler:', hex);
+      console.log('🎨 ENHANCED color change with auto text tool:', hex);
+      console.log('🎯 Current active tool:', activeTool);
+      console.log('🔧 setActiveTool function available:', typeof setActiveTool);
       
-      setLocalColor(hex);
-      updateToolPref?.('textColor', hex);
-      
-      // Apply color IMMEDIATELY - no delays, no polling
-      const success = applyColorDirectlyToSelectedElements(excalidrawAPI, hex);
-      
-      if (success) {
-        console.log('✅ Color applied to selected text');
-      } else {
-        console.log('ℹ️ Color applied to tool defaults');
-      }
-    },
-    [excalidrawAPI, updateToolPref],
-  );
-
-  const handleTextColorChangeWithToolSwitch = useCallback(
-    (hex: string) => {
-      // Switch to text tool first if needed
-      if (activeTool !== 'text' && excalidrawAPI) {
+      // DEBUG: Check Excalidraw's actual tool state
+      if (excalidrawAPI) {
         try {
-          excalidrawAPI.setActiveTool({ type: 'text' });
-          const { setActiveTool } = useWorkspaceStore.getState();
-          setActiveTool('text');
+          const appState = excalidrawAPI.getAppState();
+          console.log('🔍 Excalidraw actual tool state:', appState?.activeTool);
+          console.log('🔍 Excalidraw full appState keys:', Object.keys(appState || {}));
         } catch (e) {
-          console.error('Error switching to text tool:', e);
+          console.log('🔍 Could not read Excalidraw state:', e);
         }
       }
       
-      // Apply color change immediately
-      handleTextColorChange(hex);
+      // Step 1: Update tool preferences
+      updateToolPref?.('textColor', hex);
+      
+      // Step 2: Apply color to any selected elements immediately
+      const appliedToSelection = applyColorDirectlyToSelectedElements(excalidrawAPI, hex);
+      
+      // Step 3: AUTO-SWITCH TO TEXT TOOL if not already active and no selection was updated
+      if (activeTool !== 'text' && !appliedToSelection) {
+        console.log('🔄 Auto-switching to text tool after color selection');
+        
+        // Use the store's selectTool method which handles both Excalidraw and store state
+        try {
+          // Try using the store's selectTool if available, otherwise use setActiveTool
+          const store = useWorkspaceStore.getState();
+          if (store.selectTool && typeof store.selectTool === 'function') {
+            console.log('🔄 Using store.selectTool method');
+            store.selectTool('text');
+          } else {
+            console.log('🔄 Using setActiveTool method');
+            setActiveTool('text');
+            
+            // Manually handle Excalidraw tool switch
+            if (excalidrawAPI) {
+              excalidrawAPI.setActiveTool({ type: 'text' });
+              excalidrawAPI.updateScene({
+                appState: {
+                  activeTool: { type: 'text' },
+                  currentItemStrokeColor: hex,
+                  currentItemFontSize: 24,
+                }
+              });
+            }
+          }
+          
+          console.log('✅ Auto-switched to text tool - ready to create text box');
+        } catch (e) {
+          console.error('Error during tool switch:', e);
+        }
+      } else if (activeTool === 'text' && !appliedToSelection) {
+        // FORCE EXCALIDRAW TOOL SYNC - even if store thinks we're already on text tool
+        console.log('🔄 Already on text tool, but forcing Excalidraw sync');
+        if (excalidrawAPI) {
+          try {
+            excalidrawAPI.setActiveTool({ type: 'text' });
+            excalidrawAPI.updateScene({
+              appState: {
+                activeTool: { type: 'text' },
+                currentItemStrokeColor: hex,
+                currentItemFontSize: 24,
+              }
+            });
+            console.log('🔄 Forced Excalidraw tool sync to text');
+            
+            // DEBUG: Verify the sync worked
+            setTimeout(() => {
+              try {
+                const newAppState = excalidrawAPI.getAppState();
+                console.log('🔍 After sync - Excalidraw tool:', newAppState?.activeTool);
+              } catch (e) {
+                console.log('🔍 Could not verify sync:', e);
+              }
+            }, 100);
+          } catch (e) {
+            console.error('Error forcing Excalidraw tool sync:', e);
+          }
+        }
+      }
+      
+      // Step 4: Provide user feedback
+      if (appliedToSelection) {
+        console.log('✅ Color applied to selected text');
+      } else {
+        console.log('ℹ️ Color set for next text element - text tool activated');
+      }
     },
-    [handleTextColorChange, activeTool, excalidrawAPI],
+    [excalidrawAPI, updateToolPref, setActiveTool, activeTool],
   );
 
   // Helper function for other text properties
@@ -381,7 +502,13 @@ export function AccordionToolbar({
               {/* Divider */}
               <div className="h-8 w-px bg-gray-300" />
 
-              {/* FINAL: Direct color application buttons */}
+              {/* ENHANCED: Color application buttons with auto text tool activation */}
+              <div className="flex items-center gap-2">
+                <div className="text-xs font-medium text-gray-600 mb-1">
+                  Click color → Auto-switch to text tool:
+                </div>
+              </div>
+              
               <div className="flex items-center gap-2">
                 {[
                   { name: 'Black', hex: '#000000' },
@@ -395,7 +522,6 @@ export function AccordionToolbar({
                     <button
                       key={color.hex}
                       onMouseDown={(e) => {
-                        // Prevent any default behaviors that might affect selection
                         e.preventDefault();
                         e.stopPropagation();
                       }}
@@ -404,52 +530,70 @@ export function AccordionToolbar({
                         e.stopPropagation();
                       }}
                       onClick={(e) => {
-                        // Prevent any bubbling
                         e.preventDefault();
                         e.stopPropagation();
                         
-                        console.log(`🎨 IMMEDIATE color click: ${color.name} (${color.hex})`);
+                        console.log(`🎨 ENHANCED color click: ${color.name} (${color.hex})`);
                         
-                        // Apply immediately with no delays
-                        handleTextColorChangeWithToolSwitch(color.hex);
+                        // Update local state
+                        setLocalColor(color.hex);
+                        
+                        // Apply with auto text tool activation
+                        handleTextColorChange(color.hex);
                       }}
-                      className={`h-7 w-7 rounded-md border-2 transition-all hover:scale-110 ${
+                      className={`h-8 w-8 rounded-md border-2 transition-all hover:scale-110 relative ${
                         selected ? 'border-blue-500 ring-2 ring-blue-200 scale-105' : 'border-gray-300 hover:border-gray-400'
                       }`}
                       style={{ backgroundColor: color.hex }}
-                      title={color.name}
+                      title={`${color.name} - Click to set color and switch to text tool`}
                       type="button"
-                    />
+                    >
+                      {/* Auto-switch indicator */}
+                      {!selected && activeTool !== 'text' && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 border border-white rounded-full flex items-center justify-center">
+                          <Type className="w-2 h-2 text-white" />
+                        </div>
+                      )}
+                    </button>
                   );
                 })}
 
-                {/* Custom Color Picker */}
+                {/* Custom Color Picker with Auto Text Tool */}
                 <div className="relative">
                   <button
                     onClick={() => setShowCustomColorPicker((s) => !s)}
-                    className="h-7 w-7 rounded-md border-2 border-gray-300 hover:border-gray-400 bg-white flex items-center justify-center transition-all hover:scale-110"
-                    title="Custom color"
+                    className="h-8 w-8 rounded-md border-2 border-gray-300 hover:border-gray-400 bg-white flex items-center justify-center transition-all hover:scale-110 relative"
+                    title="Custom color - Auto-switches to text tool"
                     type="button"
                   >
                     <Palette className="w-4 h-4 text-gray-600" />
+                    {activeTool !== 'text' && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 border border-white rounded-full flex items-center justify-center">
+                        <Type className="w-2 h-2 text-white" />
+                      </div>
+                    )}
                   </button>
 
                   {showCustomColorPicker && (
                     <div className="absolute top-full left-0 mt-2 p-3 bg-white rounded-lg border border-gray-200 shadow-lg z-50">
+                      <div className="mb-2 text-xs text-gray-600">
+                        Selecting color will switch to text tool automatically
+                      </div>
                       <div className="grid grid-cols-6 gap-2 mb-3">
                         {TEXT_COLORS.slice(5).map((color) => (
                           <button
                             key={color.hex}
                             onClick={() => {
                               console.log(`🎨 Custom color: ${color.name} (${color.hex})`);
-                              handleTextColorChangeWithToolSwitch(color.hex);
+                              setLocalColor(color.hex);
+                              handleTextColorChange(color.hex);
                               setShowCustomColorPicker(false);
                             }}
                             className={`h-6 w-6 rounded border-2 transition-all hover:scale-110 ${
                               localColor === color.hex ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-300'
                             }`}
                             style={{ backgroundColor: color.hex }}
-                            title={color.name}
+                            title={`${color.name} - Auto-switch to text tool`}
                             type="button"
                           />
                         ))}
@@ -459,11 +603,12 @@ export function AccordionToolbar({
                         value={localColor}
                         onChange={(e) => {
                           console.log(`🎨 Color input: ${e.target.value}`);
-                          handleTextColorChangeWithToolSwitch(e.target.value);
+                          setLocalColor(e.target.value);
+                          handleTextColorChange(e.target.value);
                           setShowCustomColorPicker(false);
                         }}
                         className="w-full h-8 rounded border border-gray-300 cursor-pointer"
-                        title="Custom color picker"
+                        title="Custom color picker - Auto-switch to text tool"
                       />
                     </div>
                   )}
