@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Workspace – Fun & Modern</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:400,500,700&display=swap">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="student_workspace_theme.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif !important; }
+    .fun-bounce { transition: transform 0.15s cubic-bezier(.4,2,.6,1); }
+    .fun-bounce:active { transform: scale(1.08) rotate(-2deg); }
+    .fun-pop { box-shadow: 0 4px 16px 0px #FFD16633; }
+    .fun-dot {
+      width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+      background: linear-gradient(135deg, #EC5D3A 60%, #FFD166 100%);
+      margin-right: 6px;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
+  <!-- Header -->
+  <header class="header flex items-center justify-between px-8 py-4 mb-4 shadow-sm border-b border-[var(--border)] bg-[var(--card)]">
+    <div class="flex items-center gap-3">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center bg-[var(--primary)] shadow fun-pop">
+        <i data-lucide="pencil" class="text-white" style="width:28px;height:28px;"></i>
+      </div>
+      <div>
+        <h1 class="text-2xl font-extrabold tracking-tight flex items-center gap-2">
+          Assignment Workspace
+          <span class="inline-block w-2 h-2 rounded-full bg-[var(--accent)] animate-pulse"></span>
+        </h1>
+        <span class="text-sm text-[var(--secondary)] font-medium">Universal workspace for all assignments</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-4">
+      <span class="flex items-center gap-1 px-3 py-1 rounded-full bg-[var(--secondary)] text-white text-xs font-semibold shadow fun-bounce">
+        <i data-lucide="check-circle" class="w-4 h-4"></i> Canvas Ready
+      </span>
+      <span class="flex items-center gap-1 px-3 py-1 rounded-full bg-[var(--accent)] text-[var(--accent-foreground)] text-xs font-semibold shadow fun-bounce">
+        <i data-lucide="save" class="w-4 h-4"></i> Saved
+      </span>
+    </div>
+  </header>
+
+  <!-- Toolbar -->
+  <nav class="toolbar flex flex-wrap items-center justify-center gap-4 px-8 py-4 mb-4 bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-xs">
+    <!-- Undo/Redo -->
+    <button class="btn fun-bounce text-[var(--secondary)] hover:bg-[var(--muted)]" title="Undo"><i data-lucide="rotate-ccw"></i></button>
+    <button class="btn fun-bounce text-[var(--secondary)] hover:bg-[var(--muted)]" title="Redo"><i data-lucide="rotate-cw"></i></button>
+    <!-- Tool Buttons -->
+    <div class="flex gap-2 ml-6">
+      <button class="btn fun-bounce flex flex-col items-center px-4 py-2 text-xs text-[var(--foreground)] hover:bg-[var(--muted)] active:bg-[var(--primary)] active:text-white rounded-full shadow-sm" title="Select"><i data-lucide="mouse-pointer"></i><span>Select</span></button>
+      <button class="btn fun-bounce flex flex-col items-center px-4 py-2 text-xs text-white bg-[var(--primary)] rounded-full shadow fun-pop" title="Draw"><i data-lucide="pencil"></i><span>Draw</span></button>
+      <button class="btn fun-bounce flex flex-col items-center px-4 py-2 text-xs text-[var(--foreground)] hover:bg-[var(--muted)] active:bg-[var(--accent)] active:text-[var(--accent-foreground)] rounded-full shadow-sm" title="Highlight"><i data-lucide="highlighter" style="color:#FFD166"></i><span>Highlight</span></button>
+      <button class="btn fun-bounce flex flex-col items-center px-4 py-2 text-xs text-[var(--foreground)] hover:bg-[var(--muted)] active:bg-[var(--secondary)] active:text-white rounded-full shadow-sm" title="Text"><i data-lucide="type"></i><span>Text</span></button>
+      <button class="btn fun-bounce flex flex-col items-center px-4 py-2 text-xs text-[var(--foreground)] hover:bg-[var(--muted)] active:bg-[var(--muted)] rounded-full shadow-sm" title="Erase"><i data-lucide="eraser"></i><span>Erase</span></button>
+      <button class="btn fun-bounce flex flex-col items-center px-4 py-2 text-xs text-[var(--foreground)] hover:bg-[var(--muted)] active:bg-[var(--secondary)] active:text-white rounded-full shadow-sm" title="Shapes"><i data-lucide="shapes"></i><span>Shapes</span></button>
+    </div>
+  </nav>
+
+  <!-- Contextual Controls (example for Draw) -->
+  <div class="flex items-center gap-4 justify-center mb-4">
+    <label class="flex items-center gap-2 text-sm font-medium">
+      <span class="w-6 h-6 rounded-full border-2 border-[var(--primary)] bg-black"></span> Pen
+    </label>
+    <label class="flex items-center gap-2 text-sm font-medium">
+      Width: <input type="range" min="1" max="10" value="2" class="w-24 accent-[var(--primary)]">
+    </label>
+  </div>
+
+  <!-- Page Navigation -->
+  <div class="flex items-center justify-center mb-4">
+    <div class="flex items-center gap-2 px-6 py-2 rounded-full bg-[var(--muted)] border border-[var(--border)] shadow-sm">
+      <button class="btn fun-bounce text-[var(--primary)]" title="Prev Page"><i data-lucide="chevron-left"></i></button>
+      <span class="text-base font-bold text-[var(--foreground)]">1 / 1</span>
+      <button class="btn fun-bounce text-[var(--primary)]" title="Next Page"><i data-lucide="chevron-right"></i></button>
+    </div>
+    <button class="btn fun-bounce ml-4 px-4 py-2 rounded-full bg-[var(--secondary)] text-white font-semibold shadow" title="Add Page">+ Page</button>
+  </div>
+
+  <!-- Canvas Area -->
+  <main class="flex-1 flex justify-center items-start px-8 pb-8">
+    <section class="w-full max-w-5xl min-h-[60vh] bg-white rounded-3xl shadow border-2 border-dashed border-[var(--secondary)] flex flex-col overflow-hidden">
+      <div class="flex-1 flex items-center justify-center text-[var(--muted-foreground)] text-lg">
+        [ Canvas Area ]
+      </div>
+    </section>
+  </main>
+
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Workspace – Soft Card Delight</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:400,500,700&display=swap">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="student_workspace_theme.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif !important; }
+    .card { background: #fff; border-radius: 2rem; box-shadow: 0 4px 24px 0px #1B2A4911; }
+    .card-toolbar { background: #F9F4EF; border-radius: 2rem; box-shadow: 0 2px 12px 0px #FFD16633; }
+    .card-btn { border-radius: 1.5rem; font-weight: 600; transition: box-shadow 0.12s, transform 0.12s; }
+    .card-btn:hover { box-shadow: 0 4px 16px 0px #3AAFA933; transform: translateY(-2px) scale(1.04); }
+    .card-btn.active { background: #EC5D3A !important; color: #fff !important; }
+    .card-canvas { border: 3px dashed #FFD166; border-radius: 2rem; background: #F9F4EF; box-shadow: 0 4px 24px 0px #3AAFA911; }
+  </style>
+</head>
+<body class="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
+  <!-- Header -->
+  <header class="flex items-center justify-between px-10 py-6 mb-6 card">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center bg-[var(--primary)] shadow">
+        <i data-lucide="pencil" class="text-white" style="width:28px;height:28px;"></i>
+      </div>
+      <h1 class="text-2xl font-extrabold tracking-tight text-[var(--foreground)]">Assignment Workspace</h1>
+    </div>
+    <span class="flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--secondary)] text-white text-base font-bold shadow">
+      <i data-lucide="check-circle" class="w-5 h-5"></i> Canvas Ready
+    </span>
+  </header>
+
+  <!-- Toolbar -->
+  <nav class="card-toolbar flex flex-wrap items-center justify-center gap-4 px-8 py-4 mb-6 mx-auto max-w-3xl card">
+    <button class="card-btn px-5 py-2 text-base text-[var(--foreground)] hover:bg-[var(--muted)]"> <i data-lucide="mouse-pointer"></i> Select</button>
+    <button class="card-btn px-5 py-2 text-base text-white bg-[var(--primary)] active"> <i data-lucide="pencil"></i> Draw</button>
+    <button class="card-btn px-5 py-2 text-base text-[var(--foreground)] hover:bg-[var(--accent)]"> <i data-lucide="highlighter" style="color:#FFD166"></i> Highlight</button>
+    <button class="card-btn px-5 py-2 text-base text-[var(--foreground)] hover:bg-[var(--secondary)]"> <i data-lucide="type"></i> Text</button>
+    <button class="card-btn px-5 py-2 text-base text-[var(--foreground)] hover:bg-[var(--muted)]"> <i data-lucide="eraser"></i> Erase</button>
+    <button class="card-btn px-5 py-2 text-base text-[var(--foreground)] hover:bg-[var(--secondary)]"> <i data-lucide="shapes"></i> Shapes</button>
+  </nav>
+
+  <!-- Page Navigation -->
+  <div class="flex items-center justify-center mb-6">
+    <div class="card flex items-center gap-2 px-6 py-2 rounded-full">
+      <button class="card-btn text-[var(--primary)]" title="Prev Page"><i data-lucide="chevron-left"></i></button>
+      <span class="text-base font-bold text-[var(--foreground)]">1 / 1</span>
+      <button class="card-btn text-[var(--primary)]" title="Next Page"><i data-lucide="chevron-right"></i></button>
+    </div>
+    <button class="card-btn ml-4 px-4 py-2 rounded-full bg-[var(--secondary)] text-white font-semibold shadow">+ Page</button>
+  </div>
+
+  <!-- Canvas Area -->
+  <main class="flex-1 flex justify-center items-start px-8 pb-8">
+    <section class="card-canvas w-full max-w-4xl min-h-[60vh] flex flex-col overflow-hidden">
+      <div class="flex-1 flex items-center justify-center text-[var(--muted-foreground)] text-xl font-bold">
+        [ Canvas Area ]
+      </div>
+    </section>
+  </main>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

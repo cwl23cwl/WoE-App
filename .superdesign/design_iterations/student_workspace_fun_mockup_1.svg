@@ -1,0 +1,47 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="800" fill="#F9F4EF"/>
+  <!-- Header -->
+  <rect x="60" y="40" width="1080" height="70" rx="20" fill="#fff" stroke="#E5E7EB" stroke-width="2"/>
+  <circle cx="110" cy="75" r="28" fill="#EC5D3A"/>
+  <path d="M110 65 L120 85 L100 85 Z" fill="#FFD166"/>
+  <text x="150" y="80" font-family="Inter, sans-serif" font-size="32" font-weight="bold" fill="#1B2A49">Assignment Workspace</text>
+  <rect x="950" y="60" width="90" height="32" rx="16" fill="#3AAFA9"/>
+  <text x="965" y="82" font-family="Inter, sans-serif" font-size="16" font-weight="bold" fill="#fff">Canvas</text>
+  <rect x="1050" y="60" width="70" height="32" rx="16" fill="#FFD166"/>
+  <text x="1065" y="82" font-family="Inter, sans-serif" font-size="16" font-weight="bold" fill="#1B2A49">Saved</text>
+  <!-- Toolbar -->
+  <rect x="180" y="130" width="840" height="70" rx="32" fill="#fff" stroke="#E5E7EB" stroke-width="2"/>
+  <!-- Tool Buttons -->
+  <g>
+    <circle cx="250" cy="165" r="28" fill="#F9F4EF" stroke="#E5E7EB" stroke-width="2"/>
+    <text x="235" y="170" font-family="Inter, sans-serif" font-size="18" fill="#1B2A49">&#8963;</text>
+    <text x="230" y="195" font-family="Inter, sans-serif" font-size="14" fill="#1B2A49">Select</text>
+    <circle cx="320" cy="165" r="28" fill="#EC5D3A"/>
+    <text x="305" y="170" font-family="Inter, sans-serif" font-size="18" fill="#fff">✏️</text>
+    <text x="305" y="195" font-family="Inter, sans-serif" font-size="14" fill="#EC5D3A">Draw</text>
+    <circle cx="390" cy="165" r="28" fill="#FFD166"/>
+    <text x="375" y="170" font-family="Inter, sans-serif" font-size="18" fill="#1B2A49">🖍️</text>
+    <text x="370" y="195" font-family="Inter, sans-serif" font-size="14" fill="#FFD166">Highlight</text>
+    <circle cx="460" cy="165" r="28" fill="#3AAFA9"/>
+    <text x="445" y="170" font-family="Inter, sans-serif" font-size="18" fill="#fff">T</text>
+    <text x="450" y="195" font-family="Inter, sans-serif" font-size="14" fill="#3AAFA9">Text</text>
+    <circle cx="530" cy="165" r="28" fill="#F9F4EF" stroke="#E5E7EB" stroke-width="2"/>
+    <text x="515" y="170" font-family="Inter, sans-serif" font-size="18" fill="#1B2A49">🧽</text>
+    <text x="515" y="195" font-family="Inter, sans-serif" font-size="14" fill="#1B2A49">Erase</text>
+    <circle cx="600" cy="165" r="28" fill="#F9F4EF" stroke="#E5E7EB" stroke-width="2"/>
+    <text x="585" y="170" font-family="Inter, sans-serif" font-size="18" fill="#1B2A49">⬠</text>
+    <text x="585" y="195" font-family="Inter, sans-serif" font-size="14" fill="#1B2A49">Shapes</text>
+  </g>
+  <!-- Page Navigation -->
+  <rect x="500" y="230" width="200" height="44" rx="22" fill="#F9F4EF" stroke="#E5E7EB" stroke-width="2"/>
+  <text x="570" y="260" font-family="Inter, sans-serif" font-size="20" font-weight="bold" fill="#1B2A49">1 / 1</text>
+  <circle cx="530" cy="252" r="14" fill="#EC5D3A"/>
+  <text x="525" y="257" font-family="Inter, sans-serif" font-size="18" fill="#fff">◀</text>
+  <circle cx="670" cy="252" r="14" fill="#3AAFA9"/>
+  <text x="665" y="257" font-family="Inter, sans-serif" font-size="18" fill="#fff">▶</text>
+  <rect x="720" y="240" width="80" height="32" rx="16" fill="#3AAFA9"/>
+  <text x="740" y="262" font-family="Inter, sans-serif" font-size="16" font-weight="bold" fill="#fff">+ Page</text>
+  <!-- Canvas Area -->
+  <rect x="120" y="300" width="960" height="420" rx="36" fill="#fff" stroke="#3AAFA9" stroke-width="4" stroke-dasharray="12 8"/>
+  <text x="600" y="520" font-family="Inter, sans-serif" font-size="32" fill="#6B7280" text-anchor="middle">[ Canvas Area ]</text>
+</svg>

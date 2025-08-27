@@ -1,286 +1,512 @@
-// stores/useWorkspaceStore.ts - Enhanced to match your existing toolbar components
-'use client'
+'use client';
 
-import { create } from 'zustand'
+import React from 'react';
+import { create } from 'zustand';
 
-// Types
-type SaveState = 'saved' | 'saving' | 'unsaved' | 'error'
-type ToolType = 'select' | 'draw' | 'highlighter' | 'text' | 'erase' | 'shapes'
+/** ====== Tooling Types ====== */
+export type ToolType = 'select' | 'draw' | 'highlighter' | 'text' | 'erase' | 'shapes';
+type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
-interface Page {
-  id: string
-  title: string
-  elements: any[]
-  appState: any
-  createdAt: Date
-  updatedAt: Date
-}
+/** A single “page” in your workspace */
+export type Page = {
+  id: string;
+  name: string;
+  title?: string;                 // <- added to satisfy page.tsx reads
+  elements: any[];
+  appState?: Record<string, any>;
+  files?: Record<string, any>;
+  createdAt: number;
+  updatedAt: number;
+};
 
-interface ToolPrefs {
-  drawColor?: string
-  drawSize?: number
-  highlighterColor?: string
-  highlighterSize?: number
-  highlighterOpacity?: number
-  textColor?: string
-  textSize?: number
-}
+/** Optional payload for applying text styles to selection */
+type TextStylePayload = Partial<{
+  color: string;
+  fontSize: number;
+  fontFamily: string;
+  fontWeight: 'normal' | 'bold';
+  fontStyle: 'normal' | 'italic';
+  textDecoration: 'none' | 'underline';
+  textAlign: 'left' | 'center' | 'right';
+  backgroundColor: string;
+  borderColor: string;
+  borderWidth: number;
+}>;
 
-interface WorkspaceState {
-  // Page Management
-  pages: Page[]
-  currentPageIndex: number
-  
-  // Tool State  
-  activeTool: ToolType
-  toolPrefs: ToolPrefs
-  
-  // Excalidraw Integration
-  excalidrawAPI: any | null
-  
-  // Save State
-  saveState: SaveState
-  canUndo: boolean
-  canRedo: boolean
-  
-  // Actions
-  setActiveTool: (tool: ToolType) => void
-  updateToolPref: <K extends keyof ToolPrefs>(key: K, value: ToolPrefs[K]) => void
-  setExcalidrawAPI: (api: any) => void
-  
-  // Page Actions
-  addPage: (title?: string) => void
-  deletePage: (index: number) => void
-  duplicatePage: (index: number) => void
-  jumpToPage: (index: number) => void
-  updatePageTitle: (index: number, title: string) => void
-  updateCurrentPage: (elements: any[], appState: any) => void
-  
-  // Save Actions
-  setSaveState: (state: SaveState) => void
-  undo: () => void
-  redo: () => void
-  resetTextTool: () => void
-}
+/** A read-only snapshot of current selection’s text styles */
+export type DerivedTextStyle = Partial<{
+  fontSize: number;
+  color: string;
+  fontFamily: string;
+  fontWeight: 'normal' | 'bold';
+  fontStyle: 'normal' | 'italic';
+  textDecoration: 'none' | 'underline';
+  textAlign: 'left' | 'center' | 'right';
+  backgroundColor: string;
+  borderColor: string;
+  borderWidth: number;
+}>;
 
-// Helper to create a new page
-const createPage = (title: string = 'New Page'): Page => ({
-  id: Math.random().toString(36).slice(2),
-  title,
-  elements: [],
-  appState: {
-    zenModeEnabled: false,
-    viewBackgroundColor: '#ffffff'
-  },
-  createdAt: new Date(),
-  updatedAt: new Date()
-})
+/** ====== Defaults ====== */
+const DEFAULT_TOOL_PREFS = {
+  textColor: '#111827',
+  textSize: 24,
+  textFamily: 'Arial, sans-serif',
+  textBold: false,
+  textItalic: false,
+  textUnderlined: false,
+  textAlign: 'left' as const,
+  textBackgroundFill: 'transparent',
+  textBorderColor: '#000000',
+  textBorderWidth: 0,
+  drawColor: '#111827',
+  drawSize: 4,
+  highlighterColor: '#FFF176',
+  highlighterSize: 12,
+  highlighterOpacity: 0.3,
+  shapeColor: '#111827',
+  shapeSize: 4,
+};
+
+/** ====== Utils ====== */
+const uid = (p = 'pg') => `${p}_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
+const now = () => Date.now();
+
+/** ====== Store Shape ====== */
+type WorkspaceState = {
+  // Tool/UI
+  activeTool: ToolType;
+  expandedTool: ToolType | null;
+  toolPrefs: Record<string, any>;
+  excalidrawAPI: any | null;
+
+  // Selection / editing (needed by page.tsx)
+  selectedElementIds: string[];                      // <- added
+  setSelectedElementIds: (ids: string[]) => void;    // <- added
+  editingTextId: string | null;                      // <- added (Excalidraw editing element id or null)
+  setEditingTextId: (id: string | null) => void;     // <- added
+
+  // Save state
+  saveState: SaveState;
+  setSaveState: (s: SaveState) => void;
+
+  // Pages
+  pages: Page[];
+  currentPageIndex: number;
+
+  // Tool actions
+  setActiveTool: (tool: ToolType) => void;
+  selectTool: (tool: ToolType) => void;
+  setExpandedTool: (tool: ToolType | null) => void;
+  updateToolPref: (key: string, value: any) => void;
+  setExcalidrawAPI: (api: any | null) => void;
+
+  // Text helpers
+  applyTextStyleToSelection: (payload: TextStylePayload) => void;
+  resetTextTool: () => void;
+
+  // Page actions
+  jumpToPage: (index: number) => void;
+  addPage: (name?: string) => void;
+  deletePage: (index?: number) => void;
+  duplicatePage: (index?: number) => void;
+
+  /**
+   * updateCurrentPage can be called either with:
+   *  - (elements, appState)  — as done in page.tsx
+   *  - (partialPage)         — to merge a custom partial
+   */
+  updateCurrentPage: (...args: any[]) => void;
+};
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
-  // Initial State
-  pages: [createPage('Page 1')],
-  currentPageIndex: 0,
-  
+  /** ====== Initial State ====== */
   activeTool: 'draw',
-  toolPrefs: {
-    drawColor: '#111827',
-    drawSize: 4,
-    highlighterColor: '#FFF176', 
-    highlighterSize: 12,
-    highlighterOpacity: 0.3,
-    textColor: '#111827',
-    textSize: 24
-  },
-  
+  expandedTool: null,
+  toolPrefs: { ...DEFAULT_TOOL_PREFS },
   excalidrawAPI: null,
-  saveState: 'saved',
-  canUndo: false,
-  canRedo: false,
-  
-  // Basic Actions
-  setActiveTool: (tool) => set({ activeTool: tool }),
-  
-  updateToolPref: (key, value) => set(state => ({
-    toolPrefs: { ...state.toolPrefs, [key]: value }
-  })),
-  
-  setExcalidrawAPI: (api) => {
-    console.log('Store: Setting Excalidraw API:', !!api)
-    set({ excalidrawAPI: api })
+
+  selectedElementIds: [],
+  setSelectedElementIds: (ids) => set({ selectedElementIds: ids }),
+  editingTextId: null,
+  setEditingTextId: (id) => set({ editingTextId: id }),
+
+  saveState: 'idle',
+  setSaveState: (s) => set({ saveState: s }),
+
+  // starter page
+  pages: [
+    {
+      id: uid(),
+      name: 'Page 1',
+      title: 'Page 1',
+      elements: [],
+      appState: {},
+      files: {},
+      createdAt: now(),
+      updatedAt: now(),
+    },
+  ],
+  currentPageIndex: 0,
+
+  /** ====== Tool Actions ====== */
+  setActiveTool: (tool) => {
+    set({ activeTool: tool });
+    const api = get().excalidrawAPI;
+    try {
+      const map: Record<ToolType, string> = {
+        select: 'selection',
+        draw: 'freedraw',
+        highlighter: 'freedraw',
+        text: 'text',
+        erase: 'eraser',
+        shapes: 'rectangle',
+      };
+      api?.setActiveTool?.({ type: map[tool] ?? 'freedraw' });
+    } catch {}
   },
-  
-  // Page Management Actions
-  addPage: (title) => {
-    const state = get()
-    
-    // FIRST: Save current page state before creating new page
-    if (state.excalidrawAPI) {
-      try {
-        const elements = state.excalidrawAPI.getSceneElements()
-        const appState = state.excalidrawAPI.getAppState()
-        get().updateCurrentPage(elements, appState)
-        console.log('Saved current page before adding new page')
-      } catch (error) {
-        console.error('Failed to save current page before adding new:', error)
-      }
-    }
-    
-    // THEN: Create and add new page
-    const newTitle = title || `Page ${state.pages.length + 1}`
-    const newPage = createPage(newTitle)
-    
-    set(state => ({
-      pages: [...state.pages, newPage],
-      currentPageIndex: state.pages.length,
-      saveState: 'unsaved'
-    }))
-    
-    // FINALLY: Clear canvas for new page after a short delay
-    setTimeout(() => {
-      if (get().excalidrawAPI) {
-        try {
-          get().excalidrawAPI.updateScene({
-            elements: [], // Blank canvas
+
+  selectTool: (tool) => {
+    const { activeTool, expandedTool, toolPrefs, excalidrawAPI: api } = get();
+    if (activeTool !== tool) get().setActiveTool(tool);
+
+    // push defaults into appState when selecting a tool
+    try {
+      if (api) {
+        if (tool === 'draw') {
+          api.updateScene?.({
             appState: {
-              zenModeEnabled: false,
-              viewBackgroundColor: '#ffffff'
-            }
-          })
-          console.log('New page loaded with blank canvas')
-        } catch (error) {
-          console.error('Failed to load blank canvas for new page:', error)
+              currentItemStrokeColor: toolPrefs.drawColor ?? '#111827',
+              currentItemStrokeWidth: toolPrefs.drawSize ?? 4,
+              currentItemOpacity: 100,
+              currentItemStrokeStyle: 'solid',
+              currentItemRoughness: 0,
+            },
+          });
+        } else if (tool === 'highlighter') {
+          api.updateScene?.({
+            appState: {
+              currentItemStrokeColor: toolPrefs.highlighterColor ?? '#FFF176',
+              currentItemStrokeWidth: toolPrefs.highlighterSize ?? 12,
+              currentItemOpacity: Math.round(((toolPrefs.highlighterOpacity ?? 0.3) * 100)),
+              currentItemStrokeStyle: 'solid',
+              currentItemRoughness: 0,
+            },
+          });
+        } else if (tool === 'text') {
+          api.updateScene?.({
+            appState: {
+              currentItemStrokeColor: toolPrefs.textColor ?? '#111827',
+              currentItemFontSize: toolPrefs.textSize ?? 24,
+              currentItemStrokeStyle: 'solid',
+            },
+          });
         }
       }
-    }, 100)
-  },
-  
-  deletePage: (index) => {
-    const state = get()
-    if (state.pages.length <= 1) return
-    
-    const newPages = state.pages.filter((_, i) => i !== index)
-    let newCurrentIndex = state.currentPageIndex
-    
-    if (index < state.currentPageIndex) {
-      newCurrentIndex = state.currentPageIndex - 1
-    } else if (index === state.currentPageIndex) {
-      newCurrentIndex = Math.min(state.currentPageIndex, newPages.length - 1)
+    } catch {}
+
+    // Accordion rule: same tool keeps open; different tool switches; none -> open
+    if (expandedTool === null) set({ expandedTool: tool });
+    else if (expandedTool !== tool) set({ expandedTool: tool });
+    else {
+      // same tool -> keep open
     }
-    
-    set({
-      pages: newPages,
-      currentPageIndex: newCurrentIndex,
-      saveState: 'unsaved'
-    })
   },
-  
-  duplicatePage: (index) => {
-    const state = get()
-    const sourcePage = state.pages[index]
-    if (!sourcePage) return
-    
-    const duplicatedPage = createPage(`${sourcePage.title} (Copy)`)
-    duplicatedPage.elements = [...sourcePage.elements]
-    duplicatedPage.appState = { ...sourcePage.appState }
-    
-    const newPages = [...state.pages]
-    newPages.splice(index + 1, 0, duplicatedPage)
-    
-    set({
-      pages: newPages,
-      currentPageIndex: index + 1,
-      saveState: 'unsaved'
-    })
+
+  setExpandedTool: (tool) => set({ expandedTool: tool }),
+
+  updateToolPref: (key, value) =>
+    set((state) => ({ toolPrefs: { ...state.toolPrefs, [key]: value } })),
+
+  setExcalidrawAPI: (api) => set({ excalidrawAPI: api }),
+
+  /** ====== Text Styling ====== */
+  applyTextStyleToSelection: (payload) => {
+    const api = get().excalidrawAPI;
+    if (!api) return;
+
+    try {
+      const elements = api.getSceneElements?.() ?? [];
+      const appState = api.getAppState?.();
+      const selectedIds = Object.keys(appState?.selectedElementIds ?? {});
+      if (selectedIds.length === 0) return;
+
+      const updated = elements.map((el: any) => {
+        if (selectedIds.includes(el.id) && el.type === 'text') {
+          const next: any = { ...el };
+          if (payload.color != null) next.strokeColor = payload.color;
+          if (payload.fontSize != null) next.fontSize = payload.fontSize;
+          if (payload.fontFamily != null) next.fontFamily = payload.fontFamily;
+          if (payload.fontWeight != null) next.fontWeight = payload.fontWeight;
+          if (payload.fontStyle != null) next.fontStyle = payload.fontStyle;
+          if (payload.textDecoration != null) next.textDecoration = payload.textDecoration;
+          if (payload.textAlign != null) next.textAlign = payload.textAlign;
+          if (payload.backgroundColor != null) next.backgroundColor = payload.backgroundColor;
+          if (payload.borderColor != null) next.strokeColor = payload.borderColor;
+          if (payload.borderWidth != null) next.strokeWidth = payload.borderWidth;
+          return next;
+        }
+        return el;
+      });
+
+      api.updateScene?.({ elements: updated, commitToHistory: true });
+
+      const appDefaults: any = {};
+      if (payload.color != null) appDefaults.currentItemStrokeColor = payload.color;
+      if (payload.fontSize != null) appDefaults.currentItemFontSize = payload.fontSize;
+      if (payload.fontFamily != null) appDefaults.currentItemFontFamily = payload.fontFamily;
+      if (payload.fontWeight != null) appDefaults.currentItemFontWeight = payload.fontWeight;
+      if (payload.fontStyle != null) appDefaults.currentItemFontStyle = payload.fontStyle;
+      if (payload.textAlign != null) appDefaults.currentItemTextAlign = payload.textAlign;
+      if (payload.backgroundColor != null) appDefaults.currentItemBackgroundColor = payload.backgroundColor;
+      if (payload.borderWidth != null) appDefaults.currentItemStrokeWidth = payload.borderWidth;
+
+      if (Object.keys(appDefaults).length) api.updateScene?.({ appState: appDefaults });
+    } catch (err) {
+      console.error('applyTextStyleToSelection failed:', err);
+    }
   },
-  
+
+  resetTextTool: () => {
+    const { toolPrefs } = get();
+    const d = DEFAULT_TOOL_PREFS;
+    const merged = {
+      textColor: d.textColor,
+      textSize: d.textSize,
+      textFamily: d.textFamily,
+      textBold: d.textBold,
+      textItalic: d.textItalic,
+      textUnderlined: d.textUnderlined,
+      textAlign: d.textAlign,
+      textBackgroundFill: d.textBackgroundFill,
+      textBorderColor: d.textBorderColor,
+      textBorderWidth: d.textBorderWidth,
+    };
+    set({ toolPrefs: { ...toolPrefs, ...merged } });
+
+    const api = get().excalidrawAPI;
+    try {
+      api?.updateScene?.({
+        appState: {
+          currentItemStrokeColor: merged.textColor,
+          currentItemFontSize: merged.textSize,
+          currentItemFontFamily: merged.textFamily,
+          currentItemFontWeight: merged.textBold ? 'bold' : 'normal',
+          currentItemFontStyle: merged.textItalic ? 'italic' : 'normal',
+          currentItemTextAlign: merged.textAlign,
+          currentItemBackgroundColor:
+            merged.textBackgroundFill === 'transparent' ? 'transparent' : merged.textBackgroundFill,
+          currentItemStrokeWidth: merged.textBorderWidth,
+        },
+      });
+    } catch {}
+  },
+
+  /** ====== Pages ====== */
   jumpToPage: (index) => {
-    const state = get()
-    if (index < 0 || index >= state.pages.length) {
-      console.warn('Invalid page index:', index)
-      return
+    const state = get();
+    if (index < 0 || index >= state.pages.length) return;
+    set({ currentPageIndex: index });
+    const api = state.excalidrawAPI;
+    const target = state.pages[index];
+    try {
+      api?.updateScene?.({
+        elements: target.elements ?? [],
+        appState: { ...(target.appState ?? {}), timestamp: Date.now() },
+        files: target.files ?? {},
+        commitToHistory: true,
+      });
+    } catch (e) {
+      console.error('jumpToPage: failed to update scene', e);
     }
-    
-    // If we're already on this page, do nothing
-    if (index === state.currentPageIndex) {
-      return
+  },
+
+  addPage: (name) => {
+    const state = get();
+    const n = name || `Page ${state.pages.length + 1}`;
+    const newPage: Page = {
+      id: uid(),
+      name: n,
+      title: n,
+      elements: [],
+      appState: {},
+      files: {},
+      createdAt: now(),
+      updatedAt: now(),
+    };
+    const pages = [...state.pages, newPage];
+    const newIndex = pages.length - 1;
+
+    set({ pages, currentPageIndex: newIndex });
+
+    try {
+      state.excalidrawAPI?.updateScene?.({
+        elements: [],
+        appState: { timestamp: Date.now() },
+        files: {},
+        commitToHistory: true,
+      });
+    } catch (e) {
+      console.error('addPage: failed to clear scene', e);
     }
-    
-    // Save current page state before switching
-    if (state.excalidrawAPI) {
-      try {
-        const elements = state.excalidrawAPI.getSceneElements()
-        const appState = state.excalidrawAPI.getAppState()
-        
-        // Only save if we have actual content
-        if (elements && appState) {
-          get().updateCurrentPage(elements, appState)
-          console.log(`Saved page ${state.currentPageIndex + 1} before switching to page ${index + 1}`)
-        }
-      } catch (error) {
-        console.error('Failed to save current page before switch:', error)
+  },
+
+  deletePage: (index) => {
+    const state = get();
+    const pages = [...state.pages];
+    const idx = typeof index === 'number' ? index : state.currentPageIndex;
+    if (pages.length <= 1 || idx < 0 || idx >= pages.length) return;
+
+    pages.splice(idx, 1);
+    const nextIndex = Math.min(idx, pages.length - 1);
+    set({ pages, currentPageIndex: nextIndex });
+
+    const api = state.excalidrawAPI;
+    const target = pages[nextIndex];
+    try {
+      api?.updateScene?.({
+        elements: target.elements ?? [],
+        appState: { ...(target.appState ?? {}), timestamp: Date.now() },
+        files: target.files ?? {},
+        commitToHistory: true,
+      });
+    } catch (e) {
+      console.error('deletePage: failed to update scene', e);
+    }
+  },
+
+  duplicatePage: (index) => {
+    const state = get();
+    const srcIndex = typeof index === 'number' ? index : state.currentPageIndex;
+    if (srcIndex < 0 || srcIndex >= state.pages.length) return;
+
+    const src = state.pages[srcIndex];
+    const name = `${src.name} (copy)`;
+    const copy: Page = {
+      id: uid(),
+      name,
+      title: name,
+      elements: JSON.parse(JSON.stringify(src.elements ?? [])),
+      appState: JSON.parse(JSON.stringify(src.appState ?? {})),
+      files: JSON.parse(JSON.stringify(src.files ?? {})),
+      createdAt: now(),
+      updatedAt: now(),
+    };
+
+    const pages = [...state.pages];
+    pages.splice(srcIndex + 1, 0, copy);
+    set({ pages, currentPageIndex: srcIndex + 1 });
+
+    try {
+      state.excalidrawAPI?.updateScene?.({
+        elements: copy.elements ?? [],
+        appState: { ...(copy.appState ?? {}), timestamp: Date.now() },
+        files: copy.files ?? {},
+        commitToHistory: true,
+      });
+    } catch (e) {
+      console.error('duplicatePage: failed to update scene', e);
+    }
+  },
+
+  /**
+   * updateCurrentPage can accept:
+   *   - (elements, appState)  // what page.tsx calls
+   *   - (partialPage)         // manual merge
+   */
+  updateCurrentPage: (...args: any[]) => {
+    const state = get();
+    const idx = state.currentPageIndex;
+    const pages = [...state.pages];
+    const current = { ...pages[idx] };
+
+    try {
+      if (args.length >= 2 && Array.isArray(args[0])) {
+        // elements, appState
+        const elements = args[0] as any[];
+        const appState = args[1] as Record<string, any>;
+        const files = state.excalidrawAPI?.getFiles?.() ?? {};
+        current.elements = elements ?? [];
+        current.appState = appState ?? {};
+        current.files = files;
+      } else if (args.length === 1 && typeof args[0] === 'object') {
+        const partial = args[0] as Partial<Page>;
+        if (partial.name != null) { current.name = partial.name; current.title = partial.name; }
+        if (partial.title != null) current.title = partial.title;
+        if (partial.elements != null) current.elements = partial.elements;
+        if (partial.appState != null) current.appState = partial.appState;
+        if (partial.files != null) current.files = partial.files as any;
+      } else {
+        // No args: capture directly from canvas
+        const api = state.excalidrawAPI;
+        const elements = api?.getSceneElements?.() ?? [];
+        const appState = api?.getAppState?.() ?? {};
+        const files = api?.getFiles?.() ?? {};
+        current.elements = elements;
+        current.appState = appState;
+        current.files = files;
       }
-    }
-    
-    // Update current page index
-    set({ currentPageIndex: index })
-    
-    // Load the new page into Excalidraw
-    const newPage = state.pages[index]
-    if (state.excalidrawAPI && newPage) {
-      setTimeout(() => {
-        try {
-          state.excalidrawAPI.updateScene({
-            elements: newPage.elements || [],
-            appState: {
-              ...newPage.appState,
-              zenModeEnabled: false,
-              viewBackgroundColor: '#ffffff'
-            }
-          })
-          console.log(`Loaded page ${index + 1}: ${newPage.title}`)
-        } catch (error) {
-          console.error('Failed to load new page:', error)
-        }
-      }, 50)
+
+      current.updatedAt = now();
+      pages[idx] = current;
+      set({ pages });
+    } catch (e) {
+      console.error('updateCurrentPage failed:', e);
     }
   },
-  
-  updatePageTitle: (index, title) => {
-    set(state => ({
-      pages: state.pages.map((page, i) => 
-        i === index 
-          ? { ...page, title, updatedAt: new Date() }
-          : page
-      ),
-      saveState: 'unsaved'
-    }))
-  },
-  
-  updateCurrentPage: (elements, appState) => {
-    const state = get()
-    const currentIndex = state.currentPageIndex
-    
-    // Set saving state first
-    set({ saveState: 'saving' })
-    
-    // Update the page data
-    set(state => ({
-      pages: state.pages.map((page, i) =>
-        i === currentIndex
-          ? { ...page, elements, appState, updatedAt: new Date() }
-          : page
-      )
-    }))
-    
-    // Simulate save completion and set to saved
-    setTimeout(() => {
-      set({ saveState: 'saved' })
-    }, 500)
-  },
-  
-  // Save Actions
-  setSaveState: (saveState) => set({ saveState }),
-  undo: () => set({ canUndo: false }),
-  redo: () => set({ canRedo: false }), 
-  resetTextTool: () => console.log('Text tool reset')
-}))
+}));
+
+/** ====== Helper hook for TextStyleControls ====== */
+export function useDerivedTextStyle(excalidrawAPI: any): {
+  derivedStyle: DerivedTextStyle | null;
+  isMixed: boolean;
+} {
+  const [derived, setDerived] = React.useState<DerivedTextStyle | null>(null);
+  const [mixed, setMixed] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!excalidrawAPI) { setDerived(null); setMixed(false); return; }
+    try {
+      const elements = excalidrawAPI.getSceneElements?.() ?? [];
+      const appState = excalidrawAPI.getAppState?.();
+      const selectedIds = Object.keys(appState?.selectedElementIds ?? {});
+      const texts = elements.filter((el: any) => selectedIds.includes(el.id) && el.type === 'text');
+      if (texts.length === 0) { setDerived(null); setMixed(false); return; }
+
+      const b = texts[0];
+      const acc: DerivedTextStyle = {
+        fontSize: b.fontSize,
+        color: b.strokeColor,
+        fontFamily: b.fontFamily,
+        fontWeight: b.fontWeight,
+        fontStyle: b.fontStyle,
+        textDecoration: b.textDecoration,
+        textAlign: b.textAlign,
+        backgroundColor: b.backgroundColor,
+        borderColor: b.strokeColor,
+        borderWidth: b.strokeWidth,
+      };
+
+      let mixedLocal = false;
+      for (const t of texts.slice(1)) {
+        if (acc.fontSize !== t.fontSize) mixedLocal = true;
+        if (acc.color !== t.strokeColor) mixedLocal = true;
+        if (acc.fontFamily !== t.fontFamily) mixedLocal = true;
+        if (acc.fontWeight !== t.fontWeight) mixedLocal = true;
+        if (acc.fontStyle !== t.fontStyle) mixedLocal = true;
+        if (acc.textDecoration !== t.textDecoration) mixedLocal = true;
+        if (acc.textAlign !== t.textAlign) mixedLocal = true;
+        if (acc.backgroundColor !== t.backgroundColor) mixedLocal = true;
+        if (acc.borderColor !== t.strokeColor) mixedLocal = true;
+        if (acc.borderWidth !== t.strokeWidth) mixedLocal = true;
+      }
+      setDerived(acc);
+      setMixed(mixedLocal);
+    } catch {
+      setDerived(null);
+      setMixed(false);
+    }
+  }, [excalidrawAPI]);
+
+  return { derivedStyle: derived, isMixed: mixed };
+}

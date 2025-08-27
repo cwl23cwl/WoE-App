@@ -1,17 +1,17 @@
-// app/workspace-editor/page.tsx - Enhanced with integrated page indicator
+// app/workspace-editor/page.tsx - Updated with enhanced text functionality
 'use client'
 
 import React, { useState, useCallback, useRef, useEffect } from 'react'
 import ExcalidrawCanvasMinimal from '@/components/workspace/ExcalidrawCanvasMinimal'
-import { TopToolbar } from '@/components/workspace/TopToolbar'  // Your existing full toolbar
+import { TopToolbar } from '@/components/workspace/TopToolbar'  // This will use the enhanced AccordionToolbar
 import { PageIndicator } from '@/components/workspace/PageIndicator'
-import { useWorkspaceStore } from '@/stores/useWorkspaceStore'
+import { useWorkspaceStore } from '@/stores/useWorkspaceStore' // This is now the enhanced store
 
 export default function WorkspaceEditorPage() {
   const [isCanvasReady, setIsCanvasReady] = useState(false)
   const excalidrawAPIRef = useRef<any>(null)
 
-  // Get workspace store state and actions
+  // Get workspace store state and actions - now with enhanced text functionality
   const {
     pages,
     currentPageIndex,
@@ -20,7 +20,14 @@ export default function WorkspaceEditorPage() {
     addPage,
     deletePage,
     duplicatePage,
-    updateCurrentPage
+    updateCurrentPage,
+    // New text-related state
+    activeTool,
+    setActiveTool,
+    selectedElementIds,
+    setSelectedElementIds,
+    editingTextId,
+    setEditingTextId,
   } = useWorkspaceStore()
 
   // Get current page info
@@ -32,55 +39,95 @@ export default function WorkspaceEditorPage() {
     setMounted(true)
   }, [])
 
-  // Handle Excalidraw API with store integration
+  // Handle Excalidraw API with enhanced store integration
   const handleExcalidrawAPI = useCallback((api: any) => {
     console.log('Canvas: API received:', !!api)
     if (api) {
       excalidrawAPIRef.current = api
       
-      // Store the API in the workspace store so TopToolbar can access it
+      // Store the API in the enhanced workspace store
       setExcalidrawAPI(api)
       
       setIsCanvasReady(true)
       
-      // Load current page data if available
-      if (currentPage) {
+      // Load current page data if available - with proper mounting check
+      if (currentPage && mounted) {
+        // Use longer delay to ensure proper mounting
         setTimeout(() => {
           try {
-            api.updateScene({
-              elements: currentPage.elements || [],
-              appState: currentPage.appState || { zenModeEnabled: false }
-            })
-            console.log('Loaded page data:', currentPage.title)
+            // Double-check that API is still available and component is mounted
+            if (excalidrawAPIRef.current && mounted) {
+              excalidrawAPIRef.current.updateScene({
+                elements: currentPage.elements || [],
+                appState: currentPage.appState || { zenModeEnabled: false }
+              })
+              console.log('Loaded page data:', currentPage.title)
+            }
           } catch (error) {
             console.error('Failed to load page data:', error)
           }
-        }, 100)
+        }, 300) // Increased delay for proper mounting
       }
       
-      // Set initial tool
-      setTimeout(() => {
-        try {
-          api.setActiveTool({ type: 'freedraw' })
-          console.log('Initial tool set to draw')
-        } catch (error) {
-          console.error('Failed to set initial tool:', error)
-        }
-      }, 200)
+      // Set initial tool with proper mounting check
+      if (mounted) {
+        setTimeout(() => {
+          try {
+            // Double-check mounting and API availability
+            if (excalidrawAPIRef.current && mounted) {
+              const excalidrawToolMap: Record<string, string> = {
+                'select': 'selection',
+                'draw': 'freedraw', 
+                'text': 'text',
+                'highlighter': 'freedraw',
+                'erase': 'eraser',
+                'shapes': 'rectangle'
+              }
+              
+              const excalidrawTool = excalidrawToolMap[activeTool] || 'freedraw'
+              excalidrawAPIRef.current.setActiveTool({ type: excalidrawTool })
+              console.log(`Initial tool set to ${activeTool} (${excalidrawTool})`)
+            }
+          } catch (error) {
+            console.error('Failed to set initial tool:', error)
+          }
+        }, 400) // Even longer delay for tool setting
+      }
     }
-  }, [setExcalidrawAPI, currentPage])
+  }, [setExcalidrawAPI, currentPage, activeTool, mounted]) // Added mounted as dependency
 
-  // Auto-save current page when canvas changes
+  // Enhanced canvas change handler with text selection tracking
   const handleCanvasChange = useCallback((elements: any[], appState: any) => {
-    if (isCanvasReady && elements && appState) {
+    // Only proceed if component is mounted and canvas is ready
+    if (!mounted || !isCanvasReady || !elements || !appState) {
+      return
+    }
+
+    try {
+      // Track text selection changes for the enhanced toolbar
+      const selectedIds = Object.keys(appState?.selectedElementIds || {})
+      if (JSON.stringify(selectedIds) !== JSON.stringify(selectedElementIds)) {
+        setSelectedElementIds(selectedIds)
+      }
+      
+      // Track text editing state
+      const editingElement = appState?.editingElement
+      if (editingElement !== editingTextId) {
+        setEditingTextId(editingElement)
+      }
+      
       // Debounced save to store
       const timeoutId = setTimeout(() => {
-        updateCurrentPage(elements, appState)
+        if (mounted) { // Check mounting again before saving
+          updateCurrentPage(elements, appState)
+        }
       }, 500)
       
       return () => clearTimeout(timeoutId)
+    } catch (error) {
+      console.error('Error in canvas change handler:', error)
     }
-  }, [isCanvasReady, updateCurrentPage])
+  }, [mounted, isCanvasReady, updateCurrentPage, selectedElementIds, setSelectedElementIds, editingTextId, setEditingTextId])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -93,8 +140,16 @@ export default function WorkspaceEditorPage() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-800">Assignment Workspace</h1>
-              <div className={`text-sm ${isCanvasReady ? 'text-green-600' : 'text-orange-600'}`}>
-                {isCanvasReady ? '✅ Canvas Ready' : '⏳ Loading Canvas...'}
+              <div className="flex items-center gap-3">
+                <div className={`text-sm ${isCanvasReady ? 'text-green-600' : 'text-orange-600'}`}>
+                  {isCanvasReady ? '✅ Canvas Ready' : '⏳ Loading Canvas...'}
+                </div>
+                {/* Show current tool for debugging */}
+                {mounted && (
+                  <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                    Tool: {activeTool}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -105,14 +160,20 @@ export default function WorkspaceEditorPage() {
                 Editing: <span className="font-medium">{currentPage.title}</span>
               </div>
             )}
+            {/* Text selection status */}
+            {selectedElementIds.length > 0 && (
+              <div className="text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                {selectedElementIds.length} selected
+              </div>
+            )}
             <div className="text-sm text-gray-600">
-              Universal workspace for all assignments
+              Enhanced workspace with text tools
             </div>
           </div>
         </div>
       </header>
 
-      {/* UNIFIED TOOLBAR - Use your existing full toolbar */}
+      {/* ENHANCED TOOLBAR - Now includes text accordion functionality */}
       <TopToolbar 
         onUndo={() => {
           if (excalidrawAPIRef.current) {
@@ -136,22 +197,18 @@ export default function WorkspaceEditorPage() {
         }}
       />
 
-      {/* PAGE INDICATOR SECTION - Positioned between accordion and canvas */}
+      {/* PAGE INDICATOR SECTION */}
       <div className="bg-gradient-to-b from-white to-gray-50 border-b border-gray-100 relative z-20">
         <div className="max-w-7xl mx-auto px-6">
-          {/* Spacer for visual breathing room */}
           <div className="h-6"></div>
           
-          {/* Page Indicator Container */}
           <div className="flex items-center justify-center relative pb-6">
-            {/* Page Indicator - centered */}
             <PageIndicator
               index={currentPageIndex}
               count={pages.length}
               onJumpTo={jumpToPage}
             />
             
-            {/* Page Management Controls - positioned on right */}
             <div className="absolute right-0 flex items-center gap-2">
               <button
                 onClick={() => addPage()}
@@ -196,7 +253,6 @@ export default function WorkspaceEditorPage() {
             className="bg-white rounded-lg shadow-sm border border-gray-200 canvas-wrapper" 
             style={{ 
               height: '600px',
-              // Ensure stable positioning for coordinates
               position: 'relative',
               transform: 'translateZ(0)',
               backfaceVisibility: 'hidden'
@@ -210,36 +266,47 @@ export default function WorkspaceEditorPage() {
         </div>
       </div>
       
-      {/* Status Footer */}
+      {/* Enhanced Status Footer */}
       <footer className="bg-white border-t border-gray-200 px-6 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between text-sm text-gray-600">
           <div className="flex items-center gap-4">
-            <span>Workspace Editor - Consistent across all assignments</span>
+            <span>Enhanced Workspace Editor with Text Tools</span>
             {mounted && currentPage && (
               <span className="text-gray-400">
                 Page updated: {new Date(currentPage.updatedAt).toLocaleTimeString()}
               </span>
             )}
+            {/* Text tool status */}
+            {editingTextId && (
+              <span className="text-blue-600 bg-blue-50 px-2 py-1 rounded text-xs">
+                Editing Text
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-4">
             <span>
-              Status: {isCanvasReady ? 'Ready for drawing' : 'Initializing...'}
+              Status: {isCanvasReady ? 'Ready for drawing & text' : 'Initializing...'}
             </span>
             <span className="text-gray-400">
               {pages.length} page{pages.length !== 1 ? 's' : ''} total
             </span>
+            {selectedElementIds.length > 0 && (
+              <span className="text-blue-600">
+                {selectedElementIds.length} element{selectedElementIds.length !== 1 ? 's' : ''} selected
+              </span>
+            )}
           </div>
         </div>
       </footer>
 
-      {/* Canvas Coordinate Fix Styles */}
+      {/* Enhanced Canvas Styles */}
       <style jsx>{`
         .canvas-wrapper {
-          /* Prevent coordinate system issues */
+          /* Enhanced coordinate system stability */
           isolation: isolate;
+          contain: layout style;
         }
 
-        /* Force coordinate recalculation on layout changes */
         .canvas-wrapper :global(.excalidraw) {
           position: relative !important;
           width: 100% !important;
@@ -253,12 +320,23 @@ export default function WorkspaceEditorPage() {
           transform: none !important;
         }
 
-        /* Smooth transitions for page indicator section */
+        /* Prevent text selection conflicts */
+        .canvas-wrapper :global(.excalidraw .App-canvas) {
+          user-select: none;
+        }
+
+        /* Enhanced transitions */
         .bg-white {
           transition: all 0.2s ease;
         }
 
-        /* Ensure proper layering */
+        /* Text editing mode styles */
+        .canvas-wrapper.text-editing {
+          outline: 2px solid #3b82f6;
+          outline-offset: -2px;
+        }
+
+        /* Proper layering for text controls */
         .canvas-wrapper {
           z-index: 1;
         }
