@@ -186,3 +186,5 @@ export function ExcalidrawCanvasFixed({
           autoFocus={false}
         />
       </div>
+    )
+  }

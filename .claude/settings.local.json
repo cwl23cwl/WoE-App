@@ -13,11 +13,15 @@
       "Bash(curl:*)",
       "Bash(git add:*)",
       "Bash(git rm:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Read(c:\\Users\\charl\\Desktop/**)",
+      "Read(c:\\Users\\charl\\Pictures\\Screenshots/**)",
+      "Read(c:\\Users\\charl\\Pictures\\Screenshots/**)",
+      "Read(c:\\Users\\charl\\Pictures\\Screenshots/**)"
     ],
     "additionalDirectories": [
       "C:\\Users\\charl\\Desktop\\woe-excalidraw"
     ]
   },
-  "outputStyle": "extensive"
+  "outputStyle": "extensive-mode-v2"
 }

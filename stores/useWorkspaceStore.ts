@@ -47,11 +47,25 @@ export type DerivedTextStyle = Partial<{
   borderWidth: number;
 }>;
 
+/** ====== Font Mapping ====== */
+
+// Map UI font families to Excalidraw-supported fonts
+function mapFontFamilyForExcalidraw(uiFontFamily: string): string {
+  if (uiFontFamily.includes('Courier') || uiFontFamily.includes('monospace')) {
+    return 'Cascadia'; // Excalidraw's monospace font
+  }
+  if (uiFontFamily.includes('Comic Sans') || uiFontFamily.includes('cursive')) {
+    return 'Virgil'; // Excalidraw's hand-drawn font
+  }
+  // For all other fonts map to Helvetica (Excalidraw's main sans-serif)
+  return 'Helvetica';
+}
+
 /** ====== Defaults ====== */
 const DEFAULT_TOOL_PREFS = {
   textColor: '#111827',
   textSize: 24,
-  textFamily: 'Arial, sans-serif',
+  textFamily: 'Open Sans, sans-serif',
   textBold: false,
   textItalic: false,
   textUnderlined: false,
@@ -236,7 +250,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
           const next: any = { ...el };
           if (payload.color != null) next.strokeColor = payload.color;
           if (payload.fontSize != null) next.fontSize = payload.fontSize;
-          if (payload.fontFamily != null) next.fontFamily = payload.fontFamily;
+          if (payload.fontFamily != null) next.fontFamily = mapFontFamilyForExcalidraw(payload.fontFamily);
           if (payload.fontWeight != null) next.fontWeight = payload.fontWeight;
           if (payload.fontStyle != null) next.fontStyle = payload.fontStyle;
           if (payload.textDecoration != null) next.textDecoration = payload.textDecoration;
@@ -254,7 +268,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       const appDefaults: any = {};
       if (payload.color != null) appDefaults.currentItemStrokeColor = payload.color;
       if (payload.fontSize != null) appDefaults.currentItemFontSize = payload.fontSize;
-      if (payload.fontFamily != null) appDefaults.currentItemFontFamily = payload.fontFamily;
+      if (payload.fontFamily != null) appDefaults.currentItemFontFamily = mapFontFamilyForExcalidraw(payload.fontFamily);
       if (payload.fontWeight != null) appDefaults.currentItemFontWeight = payload.fontWeight;
       if (payload.fontStyle != null) appDefaults.currentItemFontStyle = payload.fontStyle;
       if (payload.textAlign != null) appDefaults.currentItemTextAlign = payload.textAlign;
@@ -290,7 +304,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         appState: {
           currentItemStrokeColor: merged.textColor,
           currentItemFontSize: merged.textSize,
-          currentItemFontFamily: merged.textFamily,
+          currentItemFontFamily: mapFontFamilyForExcalidraw(merged.textFamily),
           currentItemFontWeight: merged.textBold ? 'bold' : 'normal',
           currentItemFontStyle: merged.textItalic ? 'italic' : 'normal',
           currentItemTextAlign: merged.textAlign,

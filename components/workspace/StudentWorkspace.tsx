@@ -106,7 +106,7 @@ export default function StudentWorkspace({ submissionId = 'demo-submission' }: S
           currentItemStrokeColor: textColor,
           currentItemBackgroundColor: 'transparent',
           currentItemOpacity: 100,
-          currentItemFontFamily: isBold || isItalic ? (isBold && isItalic ? '3' : (isBold ? '2' : '1')) : '1',
+          currentItemFontFamily: 'Helvetica', // Default to Helvetica (mapped from Open Sans)
         };
       default:
         return {

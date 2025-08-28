@@ -31,12 +31,23 @@ const TEXT_COLORS = [
 ] as const;
 
 const TEXT_FONT_FAMILIES = [
-  { name: 'Arial', value: 'Arial, sans-serif', display: 'Arial' },
-  { name: 'Georgia', value: 'Georgia, serif', display: 'Georgia' },
-  { name: 'Times', value: 'Times New Roman, serif', display: 'Times' },
-  { name: 'Courier', value: 'Courier New, monospace', display: 'Courier' },
-  { name: 'Helvetica', value: 'Helvetica, sans-serif', display: 'Helvetica' },
-  { name: 'Verdana', value: 'Verdana, sans-serif', display: 'Verdana' },
+  // Default font - Open Sans (kid-friendly, highly readable)
+  { name: 'Open Sans', value: 'Open Sans, sans-serif', display: '📖 Open Sans' },
+  
+  // Kid-friendly options
+  { name: 'Comic Sans', value: 'Comic Sans MS, cursive', display: '🎨 Comic Sans' },
+  { name: 'Calibri', value: 'Calibri, sans-serif', display: '✏️ Calibri' },
+  { name: 'Tahoma', value: 'Tahoma, sans-serif', display: '👀 Tahoma' },
+  
+  // Classic readable fonts
+  { name: 'Arial', value: 'Arial, sans-serif', display: '📝 Arial' },
+  { name: 'Times New Roman', value: 'Times New Roman, serif', display: '🏛️ Times New Roman' },
+  
+  // Existing favorites
+  { name: 'Georgia', value: 'Georgia, serif', display: '📚 Georgia' },
+  { name: 'Courier', value: 'Courier New, monospace', display: '💻 Courier' },
+  { name: 'Verdana', value: 'Verdana, sans-serif', display: '🔍 Verdana' },
+  { name: 'Helvetica', value: 'Helvetica, sans-serif', display: '✨ Helvetica' },
 ] as const;
 
 /* ===== types ===== */
@@ -47,6 +58,23 @@ interface AccordionToolbarProps {
   toolType: ToolType;
   isExpanded: boolean;
   className?: string;
+}
+
+/* ===== Font mapping for Excalidraw compatibility ===== */
+
+// Map UI font families to Excalidraw-supported fonts
+function mapFontFamilyForExcalidraw(uiFontFamily: string): string {
+  // Excalidraw supports limited font families, map our UI fonts to supported ones
+  if (uiFontFamily.includes('Courier') || uiFontFamily.includes('monospace')) {
+    return 'Cascadia'; // Excalidraw's monospace font
+  }
+  if (uiFontFamily.includes('Comic Sans') || uiFontFamily.includes('cursive')) {
+    return 'Virgil'; // Excalidraw's hand-drawn font (closest to Comic Sans)
+  }
+  
+  // For all other fonts (Open Sans, Arial, Calibri, Tahoma, Times, Georgia, etc.)
+  // map to Helvetica which is Excalidraw's main sans-serif font
+  return 'Helvetica';
 }
 
 /* ===== Enhanced color application with immediate text tool activation ===== */
@@ -178,7 +206,7 @@ export function AccordionToolbar({
   // Local state for text tool
   const [localColor, setLocalColor] = useState<string>('#111827');
   const [localSize, setLocalSize] = useState<number>(24);
-  const [localFontFamily, setLocalFontFamily] = useState<string>('Arial, sans-serif');
+  const [localFontFamily, setLocalFontFamily] = useState<string>('Open Sans, sans-serif');
   const [isBold, setIsBold] = useState<boolean>(false);
   const [isItalic, setIsItalic] = useState<boolean>(false);
   const [isUnderline, setIsUnderline] = useState<boolean>(false);
@@ -198,7 +226,7 @@ export function AccordionToolbar({
     if (toolType === 'text') {
       setLocalColor(toolPrefs?.textColor || '#111827');
       setLocalSize(toolPrefs?.textSize || 24);
-      setLocalFontFamily(toolPrefs?.textFamily || 'Arial, sans-serif');
+      setLocalFontFamily(toolPrefs?.textFamily || 'Open Sans, sans-serif');
       setIsBold(!!toolPrefs?.textBold);
       setIsItalic(!!toolPrefs?.textItalic);
       setIsUnderline(!!toolPrefs?.textUnderline);
@@ -343,7 +371,9 @@ export function AccordionToolbar({
                     const newFamily = e.target.value;
                     setLocalFontFamily(newFamily);
                     updateToolPref?.('textFamily', newFamily);
-                    applyTextStyleToSelection({ fontFamily: newFamily });
+                    // Map to Excalidraw-compatible font family
+                    const excalidrawFont = mapFontFamilyForExcalidraw(newFamily);
+                    applyTextStyleToSelection({ fontFamily: excalidrawFont });
                   }}
                   className="text-sm px-3 py-2 border border-gray-300 rounded-md bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   style={{ fontFamily: localFontFamily, minWidth: '100px' }}
