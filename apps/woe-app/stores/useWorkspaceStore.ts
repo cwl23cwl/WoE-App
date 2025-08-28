@@ -49,17 +49,39 @@ export type DerivedTextStyle = Partial<{
 
 /** ====== Font Mapping ====== */
 
-// Map UI font families to Excalidraw-supported fonts
-function mapFontFamilyForExcalidraw(uiFontFamily: string): string {
+// Extract actual font name for direct use
+function extractFontName(uiFontFamily: string): string {
+  // If it's already a clean font name, return as-is
+  if (typeof uiFontFamily === 'string' && !uiFontFamily.includes(',')) {
+    return uiFontFamily;
+  }
+  
+  // Extract the first font name from font-family string
+  const fontName = uiFontFamily.split(',')[0].replace(/['"]/g, '').trim();
+  
+  // Map special cases
+  if (uiFontFamily.includes('Comic Sans')) {
+    return 'Comic Sans MS';
+  }
   if (uiFontFamily.includes('Courier') || uiFontFamily.includes('monospace')) {
-    return 'Cascadia'; // Excalidraw's monospace font
+    return 'Courier New';
   }
-  if (uiFontFamily.includes('Comic Sans') || uiFontFamily.includes('cursive')) {
-    return 'Virgil'; // Excalidraw's hand-drawn font
-  }
-  // For all other fonts map to Helvetica (Excalidraw's main sans-serif)
-  return 'Helvetica';
+  
+  return fontName;
 }
+
+/** ====== Canvas Background Types ====== */
+export type CanvasBackgroundType = 'solid' | 'grid' | 'dots';
+export type BackgroundMode = 'text' | 'canvas';
+
+export type CanvasBackground = {
+  enabled: boolean;
+  type: CanvasBackgroundType;
+  color: string;
+  density: number;  // Grid/dot spacing in pixels (4-40)
+  opacity: number;  // 0-1
+  snap: boolean;    // Snap-to-grid functionality
+};
 
 /** ====== Defaults ====== */
 const DEFAULT_TOOL_PREFS = {
@@ -71,6 +93,7 @@ const DEFAULT_TOOL_PREFS = {
   textUnderlined: false,
   textAlign: 'left' as const,
   textBackgroundFill: 'transparent',
+  textBackgroundColor: 'transparent',
   textBorderColor: '#000000',
   textBorderWidth: 0,
   drawColor: '#111827',
@@ -80,6 +103,15 @@ const DEFAULT_TOOL_PREFS = {
   highlighterOpacity: 0.3,
   shapeColor: '#111827',
   shapeSize: 4,
+};
+
+const DEFAULT_CANVAS_BACKGROUND: CanvasBackground = {
+  enabled: false,
+  type: 'solid',
+  color: '#ffffff',
+  density: 20,
+  opacity: 1.0,
+  snap: false,
 };
 
 /** ====== Utils ====== */
@@ -93,6 +125,12 @@ type WorkspaceState = {
   expandedTool: ToolType | null;
   toolPrefs: Record<string, any>;
   excalidrawAPI: any | null;
+
+  // Background controls
+  backgroundMode: BackgroundMode;
+  canvasBackground: CanvasBackground;
+  setBackgroundMode: (mode: BackgroundMode) => void;
+  updateCanvasBackground: (updates: Partial<CanvasBackground>) => void;
 
   // Selection / editing (needed by page.tsx)
   selectedElementIds: string[];                      // <- added
@@ -139,6 +177,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   expandedTool: null,
   toolPrefs: { ...DEFAULT_TOOL_PREFS },
   excalidrawAPI: null,
+
+  // Background controls
+  backgroundMode: 'text',
+  canvasBackground: { ...DEFAULT_CANVAS_BACKGROUND },
+  setBackgroundMode: (mode) => set({ backgroundMode: mode }),
+  updateCanvasBackground: (updates) => set((state) => ({
+    canvasBackground: { ...state.canvasBackground, ...updates }
+  })),
 
   selectedElementIds: [],
   setSelectedElementIds: (ids) => set({ selectedElementIds: ids }),
@@ -250,12 +296,26 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
           const next: any = { ...el };
           if (payload.color != null) next.strokeColor = payload.color;
           if (payload.fontSize != null) next.fontSize = payload.fontSize;
-          if (payload.fontFamily != null) next.fontFamily = mapFontFamilyForExcalidraw(payload.fontFamily);
+          if (payload.fontFamily != null) next.fontFamily = extractFontName(payload.fontFamily);
           if (payload.fontWeight != null) next.fontWeight = payload.fontWeight;
           if (payload.fontStyle != null) next.fontStyle = payload.fontStyle;
           if (payload.textDecoration != null) next.textDecoration = payload.textDecoration;
           if (payload.textAlign != null) next.textAlign = payload.textAlign;
-          if (payload.backgroundColor != null) next.backgroundColor = payload.backgroundColor;
+          
+          // Store background in customData since Excalidraw doesn't support native text backgrounds
+          if (payload.backgroundColor != null) {
+            next.customData = {
+              ...next.customData,
+              woe: {
+                ...next.customData?.woe,
+                textBackground: {
+                  color: payload.backgroundColor,
+                  enabled: payload.backgroundColor !== 'transparent'
+                }
+              }
+            };
+          }
+          
           if (payload.borderColor != null) next.strokeColor = payload.borderColor;
           if (payload.borderWidth != null) next.strokeWidth = payload.borderWidth;
           return next;
@@ -268,7 +328,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       const appDefaults: any = {};
       if (payload.color != null) appDefaults.currentItemStrokeColor = payload.color;
       if (payload.fontSize != null) appDefaults.currentItemFontSize = payload.fontSize;
-      if (payload.fontFamily != null) appDefaults.currentItemFontFamily = mapFontFamilyForExcalidraw(payload.fontFamily);
+      if (payload.fontFamily != null) appDefaults.currentItemFontFamily = extractFontName(payload.fontFamily);
       if (payload.fontWeight != null) appDefaults.currentItemFontWeight = payload.fontWeight;
       if (payload.fontStyle != null) appDefaults.currentItemFontStyle = payload.fontStyle;
       if (payload.textAlign != null) appDefaults.currentItemTextAlign = payload.textAlign;
@@ -304,7 +364,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         appState: {
           currentItemStrokeColor: merged.textColor,
           currentItemFontSize: merged.textSize,
-          currentItemFontFamily: mapFontFamilyForExcalidraw(merged.textFamily),
+          currentItemFontFamily: extractFontName(merged.textFamily),
           currentItemFontWeight: merged.textBold ? 'bold' : 'normal',
           currentItemFontStyle: merged.textItalic ? 'italic' : 'normal',
           currentItemTextAlign: merged.textAlign,

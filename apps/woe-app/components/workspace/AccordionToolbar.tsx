@@ -3,7 +3,7 @@
 
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useWorkspaceStore } from '@/stores/useWorkspaceStore';
+import { useWorkspaceStore, type BackgroundMode, type CanvasBackgroundType } from '@/stores/useWorkspaceStore';
 import { SimplifiedColorPicker } from '@/components/workspace/SimplifiedColorPicker';
 import {
   Type,
@@ -13,6 +13,10 @@ import {
   Palette,
   Square,
   RectangleHorizontal as BorderAll,
+  Grid3x3,
+  Circle,
+  ToggleLeft,
+  ToggleRight,
 } from 'lucide-react';
 
 /* ===== constants ===== */
@@ -28,6 +32,16 @@ const TEXT_COLORS = [
   { name: 'Orange', hex: '#EA580C' },
   { name: 'Teal', hex: '#0891B2' },
   { name: 'Pink', hex: '#DB2777' },
+] as const;
+
+const TEXT_BACKGROUND_COLORS = [
+  { name: 'None', hex: 'transparent', preview: null },
+  { name: 'Light Yellow', hex: '#FEF3C7', preview: '#FEF3C7' },
+  { name: 'Light Blue', hex: '#DBEAFE', preview: '#DBEAFE' },
+  { name: 'Light Green', hex: '#D1FAE5', preview: '#D1FAE5' },
+  { name: 'Light Purple', hex: '#E9D5FF', preview: '#E9D5FF' },
+  { name: 'Light Pink', hex: '#FCE7F3', preview: '#FCE7F3' },
+  { name: 'Light Gray', hex: '#F3F4F6', preview: '#F3F4F6' },
 ] as const;
 
 const TEXT_FONT_FAMILIES = [
@@ -62,19 +76,22 @@ interface AccordionToolbarProps {
 
 /* ===== Font mapping for Excalidraw compatibility ===== */
 
-// Map UI font families to Excalidraw-supported fonts
-function mapFontFamilyForExcalidraw(uiFontFamily: string): string {
-  // Excalidraw supports limited font families, map our UI fonts to supported ones
-  if (uiFontFamily.includes('Courier') || uiFontFamily.includes('monospace')) {
-    return 'Cascadia'; // Excalidraw's monospace font
-  }
-  if (uiFontFamily.includes('Comic Sans') || uiFontFamily.includes('cursive')) {
-    return 'Virgil'; // Excalidraw's hand-drawn font (closest to Comic Sans)
+// Extract actual font name from font-family string
+function extractFontName(uiFontFamily: string): string {
+  // Extract the first font name from the font-family string
+  const fontName = uiFontFamily.split(',')[0].replace(/['"]/g, '').trim();
+  
+  // Map some special cases to better font names for canvas rendering
+  if (uiFontFamily.includes('Comic Sans')) {
+    return 'Comic Sans MS';
   }
   
-  // For all other fonts (Open Sans, Arial, Calibri, Tahoma, Times, Georgia, etc.)
-  // map to Helvetica which is Excalidraw's main sans-serif font
-  return 'Helvetica';
+  if (uiFontFamily.includes('Courier') || uiFontFamily.includes('monospace')) {
+    return 'Courier New';
+  }
+  
+  // Return the actual font name for direct use
+  return fontName;
 }
 
 /* ===== Enhanced color application with immediate text tool activation ===== */
@@ -200,8 +217,12 @@ export function AccordionToolbar({
     excalidrawAPI, 
     activeTool,
     setActiveTool,
-    applyTextStyleToSelection 
-  } = useWorkspaceStore(); // Remove .getState() - this was the bug!
+    applyTextStyleToSelection,
+    backgroundMode,
+    canvasBackground,
+    setBackgroundMode,
+    updateCanvasBackground
+  } = useWorkspaceStore();
 
   // Local state for text tool
   const [localColor, setLocalColor] = useState<string>('#111827');
@@ -211,6 +232,7 @@ export function AccordionToolbar({
   const [isItalic, setIsItalic] = useState<boolean>(false);
   const [isUnderline, setIsUnderline] = useState<boolean>(false);
   const [hasBackground, setHasBackground] = useState<boolean>(false);
+  const [textBackgroundColor, setTextBackgroundColor] = useState<string>('transparent');
   const [hasBorder, setHasBorder] = useState<boolean>(false);
 
   // Dropdown state
@@ -231,6 +253,7 @@ export function AccordionToolbar({
       setIsItalic(!!toolPrefs?.textItalic);
       setIsUnderline(!!toolPrefs?.textUnderline);
       setHasBackground(!!toolPrefs?.textBackground);
+      setTextBackgroundColor(toolPrefs?.textBackgroundColor || 'transparent');
       setHasBorder(!!toolPrefs?.textBorder);
     }
   }, [toolPrefs, toolType]);
@@ -291,19 +314,65 @@ export function AccordionToolbar({
   );
 
 
-  // Background and border handlers
+  // Enhanced background toggle handlers for both text and canvas modes
   const handleBackgroundToggle = useCallback(() => {
-    const newBackground = !hasBackground;
-    setHasBackground(newBackground);
-    updateToolPref?.('textBackground', newBackground);
-    
-    // Apply to selected elements or set default
-    if (newBackground) {
-      applyTextStyleToSelection({ backgroundColor: '#ffffff' });
+    if (backgroundMode === 'text') {
+      // Text background mode - existing functionality
+      const newBackground = !hasBackground;
+      setHasBackground(newBackground);
+      updateToolPref?.('textBackground', newBackground);
+      
+      // Apply to selected elements or set default
+      if (newBackground) {
+        applyTextStyleToSelection({ backgroundColor: '#ffffff' });
+      } else {
+        applyTextStyleToSelection({ backgroundColor: 'transparent' });
+      }
     } else {
-      applyTextStyleToSelection({ backgroundColor: 'transparent' });
+      // Canvas background mode - new functionality
+      const newEnabled = !canvasBackground.enabled;
+      updateCanvasBackground({ enabled: newEnabled });
+      
+      // Apply to Excalidraw canvas
+      if (excalidrawAPI) {
+        try {
+          const bgColor = newEnabled ? canvasBackground.color : '#ffffff';
+          excalidrawAPI.updateScene({
+            appState: {
+              viewBackgroundColor: bgColor
+            }
+          });
+        } catch (error) {
+          console.error('Failed to update canvas background:', error);
+        }
+      }
     }
-  }, [hasBackground, updateToolPref, applyTextStyleToSelection]);
+  }, [backgroundMode, hasBackground, canvasBackground, updateToolPref, applyTextStyleToSelection, updateCanvasBackground, excalidrawAPI]);
+
+  // Text background color handler
+  const handleTextBackgroundColorChange = useCallback((color: string) => {
+    setTextBackgroundColor(color);
+    const isEnabled = color !== 'transparent';
+    setHasBackground(isEnabled);
+    updateToolPref?.('textBackground', isEnabled);
+    updateToolPref?.('textBackgroundColor', color);
+    
+    // Apply to selected text elements
+    applyTextStyleToSelection({ backgroundColor: color });
+    
+    console.log('Text background color changed to:', color);
+  }, [updateToolPref, applyTextStyleToSelection]);
+
+  // Background mode toggle handler
+  const handleBackgroundModeToggle = useCallback(() => {
+    const newMode: BackgroundMode = backgroundMode === 'text' ? 'canvas' : 'text';
+    setBackgroundMode(newMode);
+  }, [backgroundMode, setBackgroundMode]);
+
+  // Canvas background type handler
+  const handleCanvasBackgroundTypeChange = useCallback((type: CanvasBackgroundType) => {
+    updateCanvasBackground({ type });
+  }, [updateCanvasBackground]);
 
   const handleBorderToggle = useCallback(() => {
     const newBorder = !hasBorder;
@@ -371,9 +440,24 @@ export function AccordionToolbar({
                     const newFamily = e.target.value;
                     setLocalFontFamily(newFamily);
                     updateToolPref?.('textFamily', newFamily);
-                    // Map to Excalidraw-compatible font family
-                    const excalidrawFont = mapFontFamilyForExcalidraw(newFamily);
-                    applyTextStyleToSelection({ fontFamily: excalidrawFont });
+                    // Extract the actual font name
+                    const fontName = extractFontName(newFamily);
+                    console.log(`Font changed: ${newFamily} → ${fontName}`);
+                    
+                    // Update CSS variable to reflect selected font
+                    document.documentElement.style.setProperty('--selected-font-family', `"${fontName}"`);
+                    
+                    // Apply font directly to canvas using font name
+                    if (excalidrawAPI) {
+                      excalidrawAPI.updateScene({
+                        appState: {
+                          currentItemFontFamily: fontName
+                        }
+                      });
+                    }
+                    
+                    // Also apply to selected text elements
+                    applyTextStyleToSelection({ fontFamily: fontName });
                   }}
                   className="text-sm px-3 py-2 border border-gray-300 rounded-md bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   style={{ fontFamily: localFontFamily, minWidth: '100px' }}
@@ -574,61 +658,146 @@ export function AccordionToolbar({
                 </div>
             </div>
 
-            {/* RIGHT SECTION: Background and Border Controls */}
-            <div className="flex items-center justify-end gap-3 px-2">
-                {/* Background Fill Toggle */}
+            {/* RIGHT SECTION: Enhanced Background Controls */}
+            <div className="flex items-center justify-end gap-2 px-2">
+                {/* Background Mode Toggle */}
                 <button
-                  onClick={handleBackgroundToggle}
-                  className={`w-8 h-8 rounded-md text-sm flex items-center justify-center transition-colors border-2 ${
-                    hasBackground 
-                      ? 'bg-blue-500 text-white border-blue-500' 
+                  onClick={handleBackgroundModeToggle}
+                  className={`h-8 px-3 rounded-md text-xs font-medium flex items-center justify-center transition-all border ${
+                    backgroundMode === 'canvas'
+                      ? 'bg-purple-500 text-white border-purple-500' 
                       : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300 hover:border-gray-400'
                   }`}
-                  title={hasBackground ? "Remove background fill" : "Add background fill"}
+                  title={`Switch to ${backgroundMode === 'text' ? 'canvas' : 'text'} background mode`}
                   type="button"
                 >
-                  {/* Custom diagonal stripes square icon */}
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    className="w-4 h-4"
-                  >
-                    <rect
-                      x="1"
-                      y="1"
-                      width="14"
-                      height="14"
-                      rx="1"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      fill={hasBackground ? "currentColor" : "none"}
-                      opacity={hasBackground ? "0.2" : "1"}
-                    />
-                    <g stroke="currentColor" strokeWidth="1.5" opacity="0.8">
-                      <line x1="3" y1="3" x2="7" y2="7" />
-                      <line x1="6" y1="3" x2="13" y2="10" />
-                      <line x1="9" y1="3" x2="13" y2="7" />
-                      <line x1="3" y1="6" x2="10" y2="13" />
-                      <line x1="3" y1="9" x2="7" y2="13" />
-                    </g>
-                  </svg>
+                  {backgroundMode === 'text' ? (
+                    <>
+                      <Type className="w-3 h-3 mr-1" />
+                      Text
+                    </>
+                  ) : (
+                    <>
+                      <Square className="w-3 h-3 mr-1" />
+                      Canvas
+                    </>
+                  )}
                 </button>
 
-                {/* Border Toggle */}
-                <button
-                  onClick={handleBorderToggle}
-                  className={`w-8 h-8 rounded-md text-sm flex items-center justify-center transition-colors ${
-                    hasBorder 
-                      ? 'bg-blue-500 text-white' 
-                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                  }`}
-                  title={hasBorder ? "Remove border" : "Add border"}
-                  type="button"
-                >
-                  <BorderAll className="w-4 h-4" />
-                </button>
+                {/* Pattern Selection (Canvas Mode Only) */}
+                {backgroundMode === 'canvas' && (
+                  <div className="flex gap-1">
+                    {/* Solid Pattern */}
+                    <button
+                      onClick={() => handleCanvasBackgroundTypeChange('solid')}
+                      className={`w-7 h-7 rounded-md text-sm flex items-center justify-center transition-colors ${
+                        canvasBackground.type === 'solid'
+                          ? 'bg-blue-500 text-white' 
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                      }`}
+                      title="Solid background"
+                      type="button"
+                    >
+                      <Square className="w-3 h-3" />
+                    </button>
+                    
+                    {/* Grid Pattern */}
+                    <button
+                      onClick={() => handleCanvasBackgroundTypeChange('grid')}
+                      className={`w-7 h-7 rounded-md text-sm flex items-center justify-center transition-colors ${
+                        canvasBackground.type === 'grid'
+                          ? 'bg-blue-500 text-white' 
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                      }`}
+                      title="Grid background"
+                      type="button"
+                    >
+                      <Grid3x3 className="w-3 h-3" />
+                    </button>
+                    
+                    {/* Dots Pattern */}
+                    <button
+                      onClick={() => handleCanvasBackgroundTypeChange('dots')}
+                      className={`w-7 h-7 rounded-md text-sm flex items-center justify-center transition-colors ${
+                        canvasBackground.type === 'dots'
+                          ? 'bg-blue-500 text-white' 
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                      }`}
+                      title="Dots background"
+                      type="button"
+                    >
+                      <Circle className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Text Background Color Picker - Text Mode Only */}
+                {backgroundMode === 'text' && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-gray-600 mr-1">Background:</span>
+                    <div className="flex gap-1">
+                      {TEXT_BACKGROUND_COLORS.map((bgColor) => (
+                        <button
+                          key={bgColor.hex}
+                          onClick={() => handleTextBackgroundColorChange(bgColor.hex)}
+                          className={`w-6 h-6 rounded border-2 transition-all ${
+                            textBackgroundColor === bgColor.hex
+                              ? 'border-blue-500 ring-1 ring-blue-300'
+                              : 'border-gray-300 hover:border-gray-400'
+                          }`}
+                          style={{
+                            backgroundColor: bgColor.preview || '#ffffff',
+                            backgroundImage: bgColor.hex === 'transparent' 
+                              ? 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)'
+                              : 'none',
+                            backgroundSize: bgColor.hex === 'transparent' ? '4px 4px' : 'auto',
+                            backgroundPosition: bgColor.hex === 'transparent' ? '0 0, 0 2px, 2px -2px, -2px 0px' : 'auto',
+                          }}
+                          title={`${bgColor.name} background`}
+                          type="button"
+                        >
+                          {bgColor.hex === 'transparent' && (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <span className="text-xs text-gray-600">×</span>
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Canvas Background Controls - Canvas Mode Only */}
+                {backgroundMode === 'canvas' && (
+                  <button
+                    onClick={handleBackgroundToggle}
+                    className={`w-8 h-8 rounded-md text-sm flex items-center justify-center transition-colors border-2 ${
+                      canvasBackground.enabled
+                        ? 'bg-blue-500 text-white border-blue-500' 
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300 hover:border-gray-400'
+                    }`}
+                    title={canvasBackground.enabled ? "Disable canvas background" : "Enable canvas background"}
+                    type="button"
+                  >
+                    <Square className="w-4 h-4" />
+                  </button>
+                )}
+
+                {/* Border Toggle (Text Mode Only) */}
+                {backgroundMode === 'text' && (
+                  <button
+                    onClick={handleBorderToggle}
+                    className={`w-8 h-8 rounded-md text-sm flex items-center justify-center transition-colors ${
+                      hasBorder 
+                        ? 'bg-blue-500 text-white' 
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                    }`}
+                    title={hasBorder ? "Remove border" : "Add border"}
+                    type="button"
+                  >
+                    <BorderAll className="w-4 h-4" />
+                  </button>
+                )}
             </div>
           </div>
         </div>

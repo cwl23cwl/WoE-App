@@ -10,6 +10,52 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&display=swap');
+
+/* Excalidraw Custom Fonts */
+@import "../../../packages/woe-excalidraw/index.css";
+
+/* Override Excalidraw font defaults */
+.excalidraw {
+  /* Font family overrides for Excalidraw - use dynamic variable for family 1 */
+  --font-family-1: var(--selected-font-family), -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-family-2: "Cascadia", "JetBrains Mono", "Monaco", "Courier New", monospace;
+  --font-family-3: "Virgil", "Kalam", cursive;
+  --font-family-4: "Xiaolai", "Kalam", cursive;
+}
+
+/* Store the selected font family globally for CSS access */
+:root {
+  --selected-font-family: "Open Sans";
+}
+
+/* Force font family overrides in SVG text elements */
+.excalidraw svg text[font-family="Helvetica"],
+.excalidraw svg text[font-family="Assistant"] {
+  font-family: "Open Sans", Helvetica, Arial, sans-serif !important;
+}
+
+.excalidraw svg text[font-family="Cascadia"] {
+  font-family: "Cascadia", "JetBrains Mono", "Courier New", monospace !important;
+}
+
+.excalidraw svg text[font-family="Virgil"] {
+  font-family: "Virgil", "Kalam", cursive !important;
+}
+
+.excalidraw svg text[font-family="Xiaolai"] {
+  font-family: "Xiaolai", "Kalam", cursive !important;
+}
+
+/* Override font dropdown labels if using custom component */
+.excalidraw .font-family-normal::before {
+  content: "Open Sans" !important;
+}
+
+/* Style any font dropdown selects */
+.excalidraw select option[value="1"] {
+  font-family: "Open Sans" !important;
+}
 
 /* Remove or fix this import if the file doesn't exist */
 /* @import '../src/styles/z-index.css'; */

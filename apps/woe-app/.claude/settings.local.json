@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(C:\\WoE-APP/**)",
+      "Read(C:\\WoE-APP\\packages/**)",
+      "Read(C:\\WoE-APP\\packages\\woe-excalidraw/**)",
+      "Read(C:\\WoE-APP\\packages\\woe-excalidraw/**)",
+      "Read(C:\\WoE-APP\\packages\\woe-excalidraw/**)",
+      "Read(C:\\WoE-APP\\packages\\woe-excalidraw/**)",
+      "Read(C:\\WoE-APP\\packages\\woe-excalidraw/**)",
+      "Read(C:\\WoE-APP\\packages\\woe-excalidraw/**)",
+      "Read(C:\\WoE-APP\\packages\\woe-excalidraw/**)",
+      "Read(C:\\WoE-APP\\packages\\woe-excalidraw/**)",
+      "Bash(npm run dev:*)",
+      "Read(C:\\WoE-APP\\packages\\woe-excalidraw/**)",
+      "Read(C:\\WoE-APP\\packages\\woe-excalidraw/**)",
+      "Read(c:\\Users\\charl\\Pictures\\Screenshots/**)",
+      "Read(C:\\WoE-APP\\packages\\woe-excalidraw/**)",
+      "Read(C:\\Users\\charl/**)",
+      "Read(C:\\WoE-APP\\packages\\woe-excalidraw/**)",
+      "Read(C:\\WoE-APP\\packages\\woe-excalidraw/**)",
+      "Read(C:\\WoE-APP\\packages\\woe-excalidraw/**)",
+      "Read(C:\\WoE-APP\\packages\\woe-excalidraw/**)",
+      "Read(C:\\WoE-APP\\packages\\woe-excalidraw/**)",
+      "Read(C:\\WoE-APP\\packages\\woe-excalidraw/**)",
+      "Read(C:\\WoE-APP/**)",
+      "Read(C:\\WoE-APP/**)",
+      "Read(C:\\WoE-APP\\node_modules\\.pnpm\\@excalidraw+excalidraw@0.18_d2fe73b232f79128335c57c31ce8c87e\\node_modules\\@excalidraw\\excalidraw/**)",
+      "Read(C:\\WoE-APP\\node_modules\\.pnpm\\@excalidraw+excalidraw@0.18_d2fe73b232f79128335c57c31ce8c87e\\node_modules\\@excalidraw\\excalidraw\\dist/**)"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "outputStyle": "extensive-mode-v2"
+}

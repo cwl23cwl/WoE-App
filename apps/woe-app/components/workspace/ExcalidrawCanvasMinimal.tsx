@@ -1,18 +1,19 @@
-// components/workspace/ExcalidrawCanvasMinimal.tsx - Simplified compatible version
+// components/workspace/ExcalidrawCanvasMinimal.tsx - Simplified compatible version with custom fonts
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from 'next/dynamic';
+import { useWorkspaceStore, type CanvasBackground } from '@/stores/useWorkspaceStore';
 
-// Dynamically import Excalidraw to avoid SSR issues
+// Dynamically import our CUSTOM Excalidraw wrapper with fonts and background support
 const ExcalidrawComponent = dynamic(
-  () => import("@excalidraw/excalidraw").then((mod) => ({ default: mod.Excalidraw })),
+  () => import("@woe/excalidraw-wrapper").then((mod) => ({ default: mod.CustomExcalidraw })),
   { 
     ssr: false, 
     loading: () => (
       <div className="w-full h-full flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-          <p className="text-gray-600">Loading canvas...</p>
+          <p className="text-gray-600">Loading CUSTOM canvas wrapper...</p>
         </div>
       </div>
     )
@@ -30,6 +31,9 @@ function ExcalidrawCanvasMinimal({
 }: ExcalidrawCanvasMinimalProps) {
   const [mounted, setMounted] = useState(false);
   const excalidrawAPIRef = useRef<any>(null);
+  
+  // Get canvas background configuration from store
+  const { canvasBackground } = useWorkspaceStore();
 
   // Ensure component is mounted client-side
   useEffect(() => {
@@ -55,8 +59,12 @@ function ExcalidrawCanvasMinimal({
               appState: {
                 zenModeEnabled: false,
                 viewBackgroundColor: '#ffffff',
+                defaultSidebarDockedPreference: false,
+                currentItemFontFamily: "Open Sans", // Direct font name
+                currentItemFontSize: 16,
               },
             });
+            console.log('Canvas: Set default font to Open Sans');
           }
           console.log('Canvas: Initial setup complete');
         } catch (error) {
@@ -119,10 +127,12 @@ function ExcalidrawCanvasMinimal({
     <div className={`excalidraw-canvas-wrapper w-full h-full relative overflow-hidden bg-white ${className}`}>
       <ExcalidrawComponent
         excalidrawAPI={handleAPIReady}
+        canvasBackground={canvasBackground}
         initialData={{
           appState: { 
             zenModeEnabled: false, 
-            viewBackgroundColor: '#ffffff'
+            viewBackgroundColor: '#ffffff',
+            currentItemFontFamily: "Open Sans", // Direct font name
           },
           elements: [],
         }}

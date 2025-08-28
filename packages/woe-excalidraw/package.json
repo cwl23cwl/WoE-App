@@ -1,6 +1,9 @@
 {
   "name": "@woe/excalidraw-wrapper",
-  "version": "0.1.4",
+  "version": "0.1.5",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist/**", "*.css", "fonts/"],
   "peerDependencies": {
     "react": ">=18",
     "react-dom": ">=18"
@@ -11,6 +14,10 @@
     "typescript": "^5.5.0"
   },
   "dependencies": {
-    "@excalidraw/excalidraw": "0.18.0"
+    "@excalidraw/excalidraw": "link:C:\\woe-excalidraw\\packages\\excalidraw"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -w -p tsconfig.json"
   }
 }

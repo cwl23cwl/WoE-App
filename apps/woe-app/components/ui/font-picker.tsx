@@ -18,27 +18,75 @@ interface FontPickerProps {
 
 const FONT_OPTIONS: FontOption[] = [
   {
-    id: 'sans',
-    name: 'Sans',
-    label: 'Sans',
-    fontFamily: 'Helvetica',
+    id: 'open-sans',
+    name: 'Open Sans',
+    label: 'Open Sans',
+    fontFamily: 'Open Sans',
     category: 'sans'
   },
   {
-    id: 'serif', 
-    name: 'Serif',
-    label: 'Serif',
+    id: 'comic-sans',
+    name: 'Comic Sans',
+    label: 'Comic Sans',
+    fontFamily: 'Comic Sans MS',
+    category: 'comic'
+  },
+  {
+    id: 'calibri',
+    name: 'Calibri',
+    label: 'Calibri',
+    fontFamily: 'Calibri',
+    category: 'sans'
+  },
+  {
+    id: 'tahoma',
+    name: 'Tahoma',
+    label: 'Tahoma',
+    fontFamily: 'Tahoma',
+    category: 'sans'
+  },
+  {
+    id: 'arial',
+    name: 'Arial',
+    label: 'Arial',
+    fontFamily: 'Arial',
+    category: 'sans'
+  },
+  {
+    id: 'times',
+    name: 'Times New Roman',
+    label: 'Times New Roman',
     fontFamily: 'Times New Roman',
     category: 'serif'
   },
   {
-    id: 'mono',
-    name: 'Mono',
-    label: 'Mono', 
+    id: 'georgia',
+    name: 'Georgia',
+    label: 'Georgia',
+    fontFamily: 'Georgia',
+    category: 'serif'
+  },
+  {
+    id: 'courier',
+    name: 'Courier',
+    label: 'Courier',
     fontFamily: 'Courier New',
     category: 'mono'
   },
-  // Note: Comic and Dyslexia fonts would be conditionally included based on availability
+  {
+    id: 'verdana',
+    name: 'Verdana',
+    label: 'Verdana',
+    fontFamily: 'Verdana',
+    category: 'sans'
+  },
+  {
+    id: 'helvetica',
+    name: 'Helvetica',
+    label: 'Helvetica',
+    fontFamily: 'Helvetica',
+    category: 'sans'
+  },
 ]
 
 export function FontPicker({ value, onChange, className = '' }: FontPickerProps) {
@@ -139,7 +187,7 @@ export function FontPicker({ value, onChange, className = '' }: FontPickerProps)
           </div>
 
           {/* Font grid */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
             {FONT_OPTIONS.map((font, index) => {
               const isSelected = currentFontIndex === index
               const isFocused = selectedIndex === index
@@ -161,7 +209,7 @@ export function FontPicker({ value, onChange, className = '' }: FontPickerProps)
                       : ''
                     }
                   `}
-                  style={{ width: '120px', height: '72px' }}
+                  style={{ width: '100px', height: '60px' }}
                   role="option"
                   aria-selected={isSelected}
                   tabIndex={isFocused ? 0 : -1}

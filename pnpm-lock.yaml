@@ -175,8 +175,8 @@ importers:
   packages/woe-excalidraw:
     dependencies:
       '@excalidraw/excalidraw':
-        specifier: 0.18.0
-        version: 0.18.0(@types/react-dom@18.3.7(@types/react@18.3.24))(@types/react@18.3.24)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: link:C:\woe-excalidraw\packages\excalidraw
+        version: link:../../../woe-excalidraw/packages/excalidraw
     devDependencies:
       react:
         specifier: ^18.3.1
