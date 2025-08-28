@@ -1,5 +1,11 @@
-/** @type {import('next').NextConfig} */
+// apps/woe-app/next.config.mjs
 const nextConfig = {
-  transpilePackages: ["@woe/excalidraw-wrapper"],
+  experimental: {
+    turbo: { rules: {} },
+  },
+  transpilePackages: [
+    '@woe/excalidraw-wrapper',
+    '@excalidraw/excalidraw', // ← add this
+  ],
 };
 export default nextConfig;

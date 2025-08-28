@@ -30,7 +30,7 @@
     "jotai-scope": "^0.9.3",
     "konva": "^9.3.22",
     "lucide-react": "^0.540.0",
-    "next": "^15.1.0",
+    "next": "^14.2.32",
     "next-auth": "^4.24.11",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -53,7 +53,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/jest": "^29.5.12",
     "@types/node": "^24.3.0",
-    "@types/react": "^18.3.12",
+    "@types/react": "^18.3.24",
     "@types/react-dom": "^18.3.7",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.18.0",
@@ -64,25 +64,17 @@
     "prisma": "^6.14.0",
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "^5.7.2"
+    "typescript": "^5.9.2"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
-  "pnpm": {
-    "overrides": {
-      "@woe-app/common": "workspace:*",
-      "@woe-app/*": "workspace:*",
-      "@excalidraw/*": "workspace:*",
-      "@woe/*": "workspace:*"
-    },
-    "onlyBuiltDependencies": [
-      "@prisma/client",
-      "@prisma/engines",
-      "esbuild",
-      "prisma",
-      "sharp",
-      "unrs-resolver"
-    ]
-  }
+  "onlyBuiltDependencies": [
+    "@prisma/client",
+    "@prisma/engines",
+    "esbuild",
+    "prisma",
+    "sharp",
+    "unrs-resolver"
+  ]
 }
