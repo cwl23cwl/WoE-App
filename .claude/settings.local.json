@@ -17,6 +17,8 @@
       "Read(c:\\Users\\charl\\Desktop/**)",
       "Read(c:\\Users\\charl\\Pictures\\Screenshots/**)",
       "Read(c:\\Users\\charl\\Pictures\\Screenshots/**)",
+      "Read(c:\\Users\\charl\\Pictures\\Screenshots/**)",
+      "Bash(mkdir:*)",
       "Read(c:\\Users\\charl\\Pictures\\Screenshots/**)"
     ],
     "additionalDirectories": [

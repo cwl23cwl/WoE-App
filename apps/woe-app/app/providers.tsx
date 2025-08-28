@@ -6,7 +6,7 @@ import { SessionProvider } from 'next-auth/react';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const bypassAuth = pathname?.startsWith('/draw'); // bypass on /draw while we dev the canvas
+  const bypassAuth = pathname?.startsWith('/draw') || pathname?.startsWith('/workspace-editor'); // bypass on /draw and /workspace-editor while we dev
 
   if (bypassAuth) {
     return <>{children}</>;

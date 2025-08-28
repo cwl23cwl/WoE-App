@@ -26,7 +26,15 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./"],
+      "@/components/*": ["./components/*"],
+      "@/stores/*": ["./stores/*"],
+      "@/lib/*": ["./lib/*"],
+      "@woe/excalidraw": ["../../packages/woe-excalidraw"]
+    }
   },
   "include": [
     "next-env.d.ts",
