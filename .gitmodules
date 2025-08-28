@@ -1,3 +1,4 @@
 [submodule "packages/woe-excalidraw"]
 	path = packages/woe-excalidraw
 	url = https://github.com/cwl23cwl/woe-excalidraw
+	branch = master
