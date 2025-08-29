@@ -12,8 +12,6 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&display=swap');
 
-/* Excalidraw Custom Fonts */
-@import "../../../packages/woe-excalidraw/index.css";
 
 /* Override Excalidraw font defaults */
 .excalidraw {

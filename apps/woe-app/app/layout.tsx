@@ -1,5 +1,5 @@
 // apps/woe-app/app/layout.tsx
-import "@woe/excalidraw-wrapper/index.css";
+import '@excalidraw/excalidraw/css/styles.scss';
 import "../.superdesign/design_iterations/default_ui_darkmode.css";
 import "../.superdesign/design_iterations/student_workspace_theme.css";
 import "../styles/fixed-stage.css"; // Fixed stage canvas styles

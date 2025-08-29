@@ -4,16 +4,16 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from 'next/dynamic';
 import { useWorkspaceStore, type CanvasBackground } from '@/stores/useWorkspaceStore';
 
-// Dynamically import our CUSTOM Excalidraw wrapper with fonts and background support
+// Dynamically import Excalidraw from the forked package
 const ExcalidrawComponent = dynamic(
-  () => import("@woe/excalidraw-wrapper").then((mod) => ({ default: mod.CustomExcalidraw })),
+  () => import("@excalidraw/excalidraw").then((mod) => ({ default: mod.Excalidraw })),
   { 
     ssr: false, 
     loading: () => (
       <div className="w-full h-full flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-          <p className="text-gray-600">Loading CUSTOM canvas wrapper...</p>
+          <p className="text-gray-600">Loading canvas...</p>
         </div>
       </div>
     )
@@ -60,7 +60,7 @@ function ExcalidrawCanvasMinimal({
                 zenModeEnabled: false,
                 viewBackgroundColor: '#ffffff',
                 defaultSidebarDockedPreference: false,
-                currentItemFontFamily: "Open Sans", // Direct font name
+                currentItemFontFamily: 2, // Use font ID 2 (Helvetica/system font)
                 currentItemFontSize: 16,
               },
             });
@@ -132,7 +132,7 @@ function ExcalidrawCanvasMinimal({
           appState: { 
             zenModeEnabled: false, 
             viewBackgroundColor: '#ffffff',
-            currentItemFontFamily: "Open Sans", // Direct font name
+            currentItemFontFamily: 2, // Use font ID 2 (Helvetica/system font)
           },
           elements: [],
         }}

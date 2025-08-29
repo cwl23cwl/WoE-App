@@ -4,8 +4,11 @@ const nextConfig = {
     turbo: { rules: {} },
   },
   transpilePackages: [
-    '@woe/excalidraw-wrapper',
-    '@excalidraw/excalidraw', // ← add this
+    '@excalidraw/excalidraw',
+    '@excalidraw/math',
+    '@excalidraw/common',
+    '@excalidraw/element',
+    '@excalidraw/utils',
   ],
 };
 export default nextConfig;

@@ -1,7 +1,54 @@
+## 2025-08-29 19:15 — Excalidraw Module Resolution Complete
+
+**woe-excalidraw Submodule Integration** ✅ **COMPLETED**  
+- **Fixed critical module resolution errors**: `Can't resolve '@excalidraw/math'`
+- **Resolved Node.js environment compatibility**: Fixed `import.meta.env` undefined errors
+- **Disabled custom font loading**: Switched to system fonts (Open Sans, Consolas, Comic Sans MS)
+- **Dev server now starts successfully** without any module resolution errors
+
+**Root Cause & Solutions:**
+1. **Module Resolution Issue**: `@excalidraw/math` package had no built `dist` directory
+   - **Solution**: Added TypeScript path mappings to resolve directly to source code:
+   ```typescript
+   // tsconfig.json paths
+   "@excalidraw/math": ["../../packages/woe-excalidraw/packages/math/src"],
+   "@excalidraw/common": ["../../packages/woe-excalidraw/packages/common/src"],
+   // ... etc for all @excalidraw packages
+   ```
+
+2. **Environment Compatibility**: `import.meta.env` is Vite-specific, doesn't exist in Node.js/Next.js  
+   - **Solution**: Updated environment detection functions in `utils.ts`:
+   ```typescript
+   // Before: import.meta.env.MODE === ENV.DEVELOPMENT  
+   // After: process.env.NODE_ENV === 'development'
+   ```
+
+3. **Custom Font Loading Issues**: Font files (.woff2) causing webpack errors and `import.meta.env.PKG_NAME` errors
+   - **Solution**: Disabled font loading directly in source at `packages/woe-excalidraw/packages/excalidraw/fonts/Fonts.ts`:
+   ```typescript
+   // Commented out all font imports and init() calls
+   // Using system fonts: Open Sans, Consolas, Comic Sans MS instead
+   ```
+
+**Configuration Changes:**
+- **next.config.mjs**: Added all `@excalidraw/*` packages to `transpilePackages`
+- **tsconfig.json**: Added comprehensive path mappings for all submodule packages  
+- **ExcalidrawCanvasMinimal.tsx**: Set `currentItemFontFamily: 2` (system font ID)
+- **Fonts.ts**: Disabled custom font loading, keeping only system font fallbacks
+
+**Result:**
+- ✅ **Dev server starts without errors**
+- ✅ **All @excalidraw module imports resolve correctly**  
+- ✅ **System fonts work (Open Sans, Consolas, etc.)**
+- ✅ **No more webpack font loading errors**
+- ✅ **Excalidraw canvas loads properly**
+
+---
+
 ## 2025-08-28 14:30 — Custom Font System Implementation Complete
 
 **Font System Overhaul** ✅ **COMPLETED**  
-- Built custom Excalidraw wrapper (`@woe/excalidraw-wrapper`) with full font control
+- Built custom Excalidraw wrapper (`@excalidraw/excalidraw`) with full font control
 - Implemented direct font name system (removed numeric mapping) 
 - Added 10+ font options in AccordionToolbar dropdown (Open Sans, Arial, Calibri, Tahoma, etc.)
 - **Font changes now register but do not render on the canvas
