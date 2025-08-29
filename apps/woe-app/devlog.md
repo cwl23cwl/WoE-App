@@ -1,3 +1,53 @@
+## 2025-08-29 19:45 — pnpm Migration Complete
+
+**Package Manager Migration** ✅ **COMPLETED**  
+- **Migrated from npm to pnpm**: Eliminated all npm configuration warnings
+- **Cleaned npm artifacts**: Removed all `node_modules` and `package-lock.json` files 
+- **Enabled pnpm via Corepack**: pnpm v10.14.0 activated and configured
+- **Added root convenience script**: `pnpm dev` now starts app from monorepo root
+- **Locked package manager**: Added `"packageManager": "pnpm@10.14.0"` to ensure consistency
+
+**Root Cause & Solutions:**
+1. **npm Configuration Warnings**: Unknown project configs causing startup warnings
+   - **Solution**: Switched to pnpm which natively supports workspace configurations
+   ```bash
+   # Before: npm warnings about unknown configs
+   # After: Clean pnpm startup with proper workspace support
+   ```
+
+2. **Inconsistent Package Manager Usage**: Mixed npm/pnpm causing conflicts
+   - **Solution**: Complete migration with locked package manager field:
+   ```json
+   {
+     "packageManager": "pnpm@10.14.0",
+     "scripts": {
+       "dev": "pnpm --filter esl-classroom-app dev"
+     }
+   }
+   ```
+
+**Configuration Changes:**
+- **Root package.json**: Added `packageManager` field and `dev` script
+- **Corepack setup**: Enabled and prepared pnpm@latest  
+- **Clean workspace**: Removed all npm artifacts and reinstalled with pnpm
+- **Verified functionality**: Dev server starts in 2.7s without warnings
+
+**Result:**
+- ✅ **No more npm configuration warnings**
+- ✅ **Faster dependency installs** with pnpm hard links and deduplication  
+- ✅ **Single root command**: `pnpm dev` starts app from any location
+- ✅ **Consistent tooling**: packageManager field enforces pnpm usage
+- ✅ **Clean development workflow**: All warnings eliminated
+
+**Usage:**
+```bash
+# From monorepo root
+pnpm dev          # Starts woe-app dev server
+pnpm install      # Install/update dependencies
+```
+
+---
+
 ## 2025-08-29 19:15 — Excalidraw Module Resolution Complete
 
 **woe-excalidraw Submodule Integration** ✅ **COMPLETED**  
