@@ -3,7 +3,7 @@
 
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useWorkspaceStore, type BackgroundMode, type CanvasBackgroundType } from '@/stores/useWorkspaceStore';
+import { useWorkspaceStore } from '@/stores/useWorkspaceStore';
 import { SimplifiedColorPicker } from '@/components/workspace/SimplifiedColorPicker';
 import {
   Type,
@@ -13,8 +13,6 @@ import {
   Palette,
   Square,
   RectangleHorizontal as BorderAll,
-  Grid3x3,
-  Circle,
   ToggleLeft,
   ToggleRight,
 } from 'lucide-react';
@@ -218,10 +216,6 @@ export function AccordionToolbar({
     activeTool,
     setActiveTool,
     applyTextStyleToSelection,
-    backgroundMode,
-    canvasBackground,
-    setBackgroundMode,
-    updateCanvasBackground
   } = useWorkspaceStore();
 
   // Local state for text tool
@@ -234,6 +228,7 @@ export function AccordionToolbar({
   const [hasBackground, setHasBackground] = useState<boolean>(false);
   const [textBackgroundColor, setTextBackgroundColor] = useState<string>('transparent');
   const [hasBorder, setHasBorder] = useState<boolean>(false);
+  
 
   // Dropdown state
   const [showCustomColorPicker, setShowCustomColorPicker] = useState(false);
@@ -314,40 +309,21 @@ export function AccordionToolbar({
   );
 
 
-  // Enhanced background toggle handlers for both text and canvas modes
+  // Text background toggle handler - simplified to only handle textbox backgrounds
   const handleBackgroundToggle = useCallback(() => {
-    if (backgroundMode === 'text') {
-      // Text background mode - existing functionality
-      const newBackground = !hasBackground;
-      setHasBackground(newBackground);
-      updateToolPref?.('textBackground', newBackground);
-      
-      // Apply to selected elements or set default
-      if (newBackground) {
-        applyTextStyleToSelection({ backgroundColor: '#ffffff' });
-      } else {
-        applyTextStyleToSelection({ backgroundColor: 'transparent' });
-      }
+    const newBackground = !hasBackground;
+    setHasBackground(newBackground);
+    updateToolPref?.('textBackground', newBackground);
+    
+    // Apply to selected elements or set default
+    if (newBackground) {
+      // Use current color from textBackgroundColor, or default to white
+      const bgColor = textBackgroundColor === 'transparent' ? '#ffffff' : textBackgroundColor;
+      applyTextStyleToSelection({ backgroundColor: bgColor });
     } else {
-      // Canvas background mode - new functionality
-      const newEnabled = !canvasBackground.enabled;
-      updateCanvasBackground({ enabled: newEnabled });
-      
-      // Apply to Excalidraw canvas
-      if (excalidrawAPI) {
-        try {
-          const bgColor = newEnabled ? canvasBackground.color : '#ffffff';
-          excalidrawAPI.updateScene({
-            appState: {
-              viewBackgroundColor: bgColor
-            }
-          });
-        } catch (error) {
-          console.error('Failed to update canvas background:', error);
-        }
-      }
+      applyTextStyleToSelection({ backgroundColor: 'transparent' });
     }
-  }, [backgroundMode, hasBackground, canvasBackground, updateToolPref, applyTextStyleToSelection, updateCanvasBackground, excalidrawAPI]);
+  }, [hasBackground, textBackgroundColor, updateToolPref, applyTextStyleToSelection]);
 
   // Text background color handler
   const handleTextBackgroundColorChange = useCallback((color: string) => {
@@ -363,16 +339,8 @@ export function AccordionToolbar({
     console.log('Text background color changed to:', color);
   }, [updateToolPref, applyTextStyleToSelection]);
 
-  // Background mode toggle handler
-  const handleBackgroundModeToggle = useCallback(() => {
-    const newMode: BackgroundMode = backgroundMode === 'text' ? 'canvas' : 'text';
-    setBackgroundMode(newMode);
-  }, [backgroundMode, setBackgroundMode]);
+  // Background mode is now always 'text' - no toggle needed
 
-  // Canvas background type handler
-  const handleCanvasBackgroundTypeChange = useCallback((type: CanvasBackgroundType) => {
-    updateCanvasBackground({ type });
-  }, [updateCanvasBackground]);
 
   const handleBorderToggle = useCallback(() => {
     const newBorder = !hasBorder;
@@ -658,146 +626,73 @@ export function AccordionToolbar({
                 </div>
             </div>
 
-            {/* RIGHT SECTION: Enhanced Background Controls */}
+            {/* RIGHT SECTION: Text Background Controls */}
             <div className="flex items-center justify-end gap-2 px-2">
-                {/* Background Mode Toggle */}
+
+
+                {/* Text Background Color Picker */}
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-gray-600 mr-1">Background:</span>
+                  <div className="flex gap-1">
+                    {TEXT_BACKGROUND_COLORS.map((bgColor) => (
+                      <button
+                        key={bgColor.hex}
+                        onClick={() => handleTextBackgroundColorChange(bgColor.hex)}
+                        className={`w-6 h-6 rounded border-2 transition-all ${
+                          textBackgroundColor === bgColor.hex
+                            ? 'border-blue-500 ring-1 ring-blue-300'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                        style={{
+                          backgroundColor: bgColor.preview || '#ffffff',
+                          backgroundImage: bgColor.hex === 'transparent' 
+                            ? 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)'
+                            : 'none',
+                          backgroundSize: bgColor.hex === 'transparent' ? '4px 4px' : 'auto',
+                          backgroundPosition: bgColor.hex === 'transparent' ? '0 0, 0 2px, 2px -2px, -2px 0px' : 'auto',
+                        }}
+                        title={`${bgColor.name} background`}
+                        type="button"
+                      >
+                        {bgColor.hex === 'transparent' && (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <span className="text-xs text-gray-600">×</span>
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+
+
+                {/* Border Toggle */}
                 <button
-                  onClick={handleBackgroundModeToggle}
-                  className={`h-8 px-3 rounded-md text-xs font-medium flex items-center justify-center transition-all border ${
-                    backgroundMode === 'canvas'
-                      ? 'bg-purple-500 text-white border-purple-500' 
-                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300 hover:border-gray-400'
+                  onClick={handleBorderToggle}
+                  className={`w-8 h-8 rounded-md text-sm flex items-center justify-center transition-colors ${
+                    hasBorder 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                   }`}
-                  title={`Switch to ${backgroundMode === 'text' ? 'canvas' : 'text'} background mode`}
+                  title={hasBorder ? "Remove border" : "Add border"}
                   type="button"
                 >
-                  {backgroundMode === 'text' ? (
-                    <>
-                      <Type className="w-3 h-3 mr-1" />
-                      Text
-                    </>
-                  ) : (
-                    <>
-                      <Square className="w-3 h-3 mr-1" />
-                      Canvas
-                    </>
-                  )}
+                  <BorderAll className="w-4 h-4" />
                 </button>
 
-                {/* Pattern Selection (Canvas Mode Only) */}
-                {backgroundMode === 'canvas' && (
-                  <div className="flex gap-1">
-                    {/* Solid Pattern */}
-                    <button
-                      onClick={() => handleCanvasBackgroundTypeChange('solid')}
-                      className={`w-7 h-7 rounded-md text-sm flex items-center justify-center transition-colors ${
-                        canvasBackground.type === 'solid'
-                          ? 'bg-blue-500 text-white' 
-                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                      }`}
-                      title="Solid background"
-                      type="button"
-                    >
-                      <Square className="w-3 h-3" />
-                    </button>
-                    
-                    {/* Grid Pattern */}
-                    <button
-                      onClick={() => handleCanvasBackgroundTypeChange('grid')}
-                      className={`w-7 h-7 rounded-md text-sm flex items-center justify-center transition-colors ${
-                        canvasBackground.type === 'grid'
-                          ? 'bg-blue-500 text-white' 
-                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                      }`}
-                      title="Grid background"
-                      type="button"
-                    >
-                      <Grid3x3 className="w-3 h-3" />
-                    </button>
-                    
-                    {/* Dots Pattern */}
-                    <button
-                      onClick={() => handleCanvasBackgroundTypeChange('dots')}
-                      className={`w-7 h-7 rounded-md text-sm flex items-center justify-center transition-colors ${
-                        canvasBackground.type === 'dots'
-                          ? 'bg-blue-500 text-white' 
-                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                      }`}
-                      title="Dots background"
-                      type="button"
-                    >
-                      <Circle className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
-
-                {/* Text Background Color Picker - Text Mode Only */}
-                {backgroundMode === 'text' && (
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-gray-600 mr-1">Background:</span>
-                    <div className="flex gap-1">
-                      {TEXT_BACKGROUND_COLORS.map((bgColor) => (
-                        <button
-                          key={bgColor.hex}
-                          onClick={() => handleTextBackgroundColorChange(bgColor.hex)}
-                          className={`w-6 h-6 rounded border-2 transition-all ${
-                            textBackgroundColor === bgColor.hex
-                              ? 'border-blue-500 ring-1 ring-blue-300'
-                              : 'border-gray-300 hover:border-gray-400'
-                          }`}
-                          style={{
-                            backgroundColor: bgColor.preview || '#ffffff',
-                            backgroundImage: bgColor.hex === 'transparent' 
-                              ? 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)'
-                              : 'none',
-                            backgroundSize: bgColor.hex === 'transparent' ? '4px 4px' : 'auto',
-                            backgroundPosition: bgColor.hex === 'transparent' ? '0 0, 0 2px, 2px -2px, -2px 0px' : 'auto',
-                          }}
-                          title={`${bgColor.name} background`}
-                          type="button"
-                        >
-                          {bgColor.hex === 'transparent' && (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <span className="text-xs text-gray-600">×</span>
-                            </div>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Canvas Background Controls - Canvas Mode Only */}
-                {backgroundMode === 'canvas' && (
-                  <button
-                    onClick={handleBackgroundToggle}
-                    className={`w-8 h-8 rounded-md text-sm flex items-center justify-center transition-colors border-2 ${
-                      canvasBackground.enabled
-                        ? 'bg-blue-500 text-white border-blue-500' 
-                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300 hover:border-gray-400'
-                    }`}
-                    title={canvasBackground.enabled ? "Disable canvas background" : "Enable canvas background"}
-                    type="button"
-                  >
-                    <Square className="w-4 h-4" />
-                  </button>
-                )}
-
-                {/* Border Toggle (Text Mode Only) */}
-                {backgroundMode === 'text' && (
-                  <button
-                    onClick={handleBorderToggle}
-                    className={`w-8 h-8 rounded-md text-sm flex items-center justify-center transition-colors ${
-                      hasBorder 
-                        ? 'bg-blue-500 text-white' 
-                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                    }`}
-                    title={hasBorder ? "Remove border" : "Add border"}
-                    type="button"
-                  >
-                    <BorderAll className="w-4 h-4" />
-                  </button>
-                )}
+                {/* Background Fill Toggle */}
+                <button
+                  onClick={handleBackgroundToggle}
+                  className={`w-8 h-8 rounded-md text-sm flex items-center justify-center transition-colors ${
+                    hasBackground 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  }`}
+                  title={hasBackground ? "Remove background" : "Add background"}
+                  type="button"
+                >
+                  {hasBackground ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                </button>
             </div>
           </div>
         </div>

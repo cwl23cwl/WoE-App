@@ -302,18 +302,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
           if (payload.textDecoration != null) next.textDecoration = payload.textDecoration;
           if (payload.textAlign != null) next.textAlign = payload.textAlign;
           
-          // Store background in customData since Excalidraw doesn't support native text backgrounds
+          // Handle textbox background properties using new text element fields
           if (payload.backgroundColor != null) {
-            next.customData = {
-              ...next.customData,
-              woe: {
-                ...next.customData?.woe,
-                textBackground: {
-                  color: payload.backgroundColor,
-                  enabled: payload.backgroundColor !== 'transparent'
-                }
-              }
-            };
+            next.textBoxBackgroundColor = payload.backgroundColor === 'transparent' ? null : payload.backgroundColor;
+            // Set default opacity when background is set
+            if (payload.backgroundColor !== 'transparent' && next.textBoxBackgroundOpacity == null) {
+              next.textBoxBackgroundOpacity = 1;
+            }
           }
           
           if (payload.borderColor != null) next.strokeColor = payload.borderColor;
