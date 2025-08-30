@@ -210,7 +210,7 @@ export class RichTextHTML {
     }
     
     const range = selection.getRangeAt(0);
-    let targetNode = range.startContainer;
+    let targetNode: Node | null = range.startContainer;
     
     // Find the closest element node
     while (targetNode && targetNode.nodeType === Node.TEXT_NODE) {

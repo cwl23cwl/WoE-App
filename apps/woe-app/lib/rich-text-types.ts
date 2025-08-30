@@ -8,6 +8,12 @@
 export interface TextMarks {
   fontSize?: number;
   fontFamily?: string;
+  /** CSS font-weight value (e.g. '400', 'bold') */
+  fontWeight?: string | number;
+  /** additional spacing between letters in px */
+  letterSpacing?: number;
+  /** line-height multiplier applied to fontSize */
+  lineHeight?: number;
   color?: string;
   bold?: boolean;
   italic?: boolean;

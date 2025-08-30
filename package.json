@@ -10,13 +10,18 @@
     "overrides": {
       "react": "^18.3.1",
       "react-dom": "^18.3.1"
-    }
+    },
+    "ignoredBuiltDependencies": [
+      "core-js",
+      "esbuild",
+      "unrs-resolver"
+    ]
   },
   "devDependencies": {
-    "@excalidraw/excalidraw": "workspace:*",
-    "@excalidraw/math": "workspace:*",
     "@excalidraw/common": "workspace:*",
     "@excalidraw/element": "workspace:*",
+    "@excalidraw/excalidraw": "workspace:*",
+    "@excalidraw/math": "workspace:*",
     "@excalidraw/utils": "workspace:*",
     "cross-env": "7.0.3"
   }

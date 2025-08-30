@@ -74,250 +74,311 @@ export class TextLayoutEngine {
   /**
    * Layout rich text document within given constraints
    */
-  layoutText(
-    richText: RichTextDocument, 
-    maxWidth: number, 
-    lineHeight: number = 1.2
-  ): TextLayout {
-    const lines: LineLayout[] = [];
-    let currentLine: RunLayout[] = [];
-    let lineWidth = 0;
-    let lineY = 0;
-    let lineIndex = 0;
+layoutText(
+  richText: RichTextDocument,
+  maxWidth: number,
+  lineHeight: number = 1.2
+): TextLayout {
+  const lines: LineLayout[] = [];
+  let lineRuns: RunLayout[] = [];
+  let lineWidth = 0;
+  let lineTop = 0;
+  let lineHeightPx = 0;
+  let lineIndex = 0;
 
-    // Process each run
-    for (let runIndex = 0; runIndex < richText.runs.length; runIndex++) {
-      const run = richText.runs[runIndex];
-      
-      if (!run.text) continue;
+  for (let runIndex = 0; runIndex < richText.runs.length; runIndex++) {
+    const run = richText.runs[runIndex];
+    if (!run.text) continue;
 
-      // Handle line breaks in text
-      const textParts = run.text.split('\n');
-      
-      for (let partIndex = 0; partIndex < textParts.length; partIndex++) {
-        const text = textParts[partIndex];
-        
-        if (partIndex > 0) {
-          // New line - finish current line and start new one
-          if (currentLine.length > 0) {
-            lines.push(this.finalizeLine(currentLine, lineY, lineIndex, lineHeight));
-            lineIndex++;
-          }
-          currentLine = [];
-          lineWidth = 0;
-          lineY = lines.length * lineHeight * this.getLineHeight(run.marks);
-        }
+    const parts = run.text.split('\n');
+    for (let partIndex = 0; partIndex < parts.length; partIndex++) {
+      const part = parts[partIndex];
 
-        if (text.length === 0) continue;
-
-        // Word wrap handling
-        const words = text.split(/(\s+)/);
-        let currentWord = '';
-        
-        for (const word of words) {
-          const testText = currentWord + word;
-          const runWithText = { ...run, text: testText };
-          const metrics = this.measureRun(runWithText);
-          
-          if (lineWidth + metrics.width > maxWidth && currentLine.length > 0) {
-            // Word wrap - finish current line
-            if (currentWord) {
-              const finalRun = { ...run, text: currentWord };
-              const finalMetrics = this.measureRun(finalRun);
-              currentLine.push({
-                run: finalRun,
-                x: lineWidth,
-                y: lineY,
-                width: finalMetrics.width,
-                height: finalMetrics.height,
-                baseline: finalMetrics.ascent,
-                lineIndex,
-                runIndex
-              });
-            }
-            
-            lines.push(this.finalizeLine(currentLine, lineY, lineIndex, lineHeight));
-            lineIndex++;
-            currentLine = [];
-            lineWidth = 0;
-            lineY = lines.length * lineHeight * this.getLineHeight(run.marks);
-            currentWord = word.trim();
-          } else {
-            currentWord = testText;
-          }
-        }
-        
-        // Add remaining text to current line
-        if (currentWord) {
-          const finalRun = { ...run, text: currentWord };
-          const finalMetrics = this.measureRun(finalRun);
-          currentLine.push({
-            run: finalRun,
-            x: lineWidth,
-            y: lineY,
-            width: finalMetrics.width,
-            height: finalMetrics.height,
-            baseline: finalMetrics.ascent,
+      if (partIndex > 0) {
+        if (lineRuns.length > 0) {
+          lines.push(this.finalizeLine(
+            lineRuns,
+            lineTop,
             lineIndex,
-            runIndex
-          });
-          lineWidth += finalMetrics.width;
+            Number.isFinite(maxWidth) ? maxWidth : undefined
+          ));
+          lineTop += lineHeightPx;
+          lineIndex++;
         }
+        lineRuns = [];
+        lineWidth = 0;
+        lineHeightPx = 0;
+      }
+
+      if (part.length === 0) continue;
+
+      const words = part.split(/(\s+)/);
+      let currentWord = '';
+
+      for (const word of words) {
+        const testText = currentWord + word;
+        const runWithText = { ...run, text: testText };
+        const metrics = this.measureRun(runWithText);
+        const fontSize = run.marks.fontSize || 16;
+        const lh = run.marks.lineHeight ?? lineHeight;
+        const runHeight = lh * fontSize;
+
+        if (lineWidth + metrics.width > maxWidth && lineRuns.length > 0) {
+          if (currentWord) {
+            const finalRun = { ...run, text: currentWord };
+            const finalMetrics = this.measureRun(finalRun);
+            const baseline =
+              (runHeight - (finalMetrics.ascent + finalMetrics.descent)) / 2 +
+              finalMetrics.ascent;
+            lineRuns.push({
+              run: finalRun,
+              x: lineWidth,
+              y: lineTop,
+              width: finalMetrics.width,
+              height: runHeight,
+              baseline,
+              lineIndex,
+              runIndex,
+            });
+            lineWidth += finalMetrics.width;
+          }
+
+          lines.push(this.finalizeLine(
+            lineRuns,
+            lineTop,
+            lineIndex,
+            Number.isFinite(maxWidth) ? maxWidth : undefined
+          ));
+          lineTop += lineHeightPx;
+          lineIndex++;
+          lineRuns = [];
+          lineWidth = 0;
+          lineHeightPx = 0;
+          currentWord = word.trim();
+        } else {
+          currentWord = testText;
+        }
+
+        lineHeightPx = Math.max(lineHeightPx, runHeight);
+      }
+
+      if (currentWord) {
+        const finalRun = { ...run, text: currentWord };
+        const finalMetrics = this.measureRun(finalRun);
+        const fontSize = run.marks.fontSize || 16;
+        const lh = run.marks.lineHeight ?? lineHeight;
+        const runHeight = lh * fontSize;
+        const baseline =
+          (runHeight - (finalMetrics.ascent + finalMetrics.descent)) / 2 +
+          finalMetrics.ascent;
+        lineRuns.push({
+          run: finalRun,
+          x: lineWidth,
+          y: lineTop,
+          width: finalMetrics.width,
+          height: runHeight,
+          baseline,
+          lineIndex,
+          runIndex,
+        });
+        lineWidth += finalMetrics.width;
+        lineHeightPx = Math.max(lineHeightPx, runHeight);
       }
     }
-
-    // Finish last line
-    if (currentLine.length > 0) {
-      lines.push(this.finalizeLine(currentLine, lineY, lineIndex, lineHeight));
-    }
-
-    // Calculate total dimensions
-    const totalWidth = lines.reduce((max, line) => Math.max(max, line.width), 0);
-    const totalHeight = lines.length > 0 ? 
-      lines[lines.length - 1].y + lines[lines.length - 1].height : 0;
-
-    return {
-      lines,
-      totalWidth,
-      totalHeight,
-      version: richText.version
-    };
   }
+
+  if (lineRuns.length > 0) {
+    lines.push(this.finalizeLine(
+      lineRuns,
+      lineTop,
+      lineIndex,
+      Number.isFinite(maxWidth) ? maxWidth : undefined
+    ));
+    lineTop += lineHeightPx;
+  }
+
+  const totalWidth = lines.reduce((max, line) => Math.max(max, line.width), 0);
+  const totalHeight = lineTop;
+
+  return {
+    lines,
+    totalWidth,
+    totalHeight,
+    version: richText.version,
+  };
+}
 
   /**
    * Measure a single text run
    */
   measureRun(run: TextRun): TextMetrics {
-    const cacheKey = this.getRunCacheKey(run);
-    
-    if (this.measurementCache[cacheKey]) {
-      return this.measurementCache[cacheKey];
-    }
+  const cacheKey = this.getRunCacheKey(run);
+  if (this.measurementCache[cacheKey]) {
+    return this.measurementCache[cacheKey];
+  }
 
-    // Ensure canvas is initialized
-    if (!this.ctx) {
-      this.initializeCanvas();
-    }
+  if (!this.ctx) {
+    this.initializeCanvas();
+  }
 
-    const fontSize = run.marks.fontSize || 16;
-    
-    // Fallback metrics if canvas not available
-    if (!this.ctx) {
-      const approximateWidth = run.text.length * fontSize * 0.6; // Rough approximation
-      const metrics: TextMetrics = {
-        width: approximateWidth,
-        height: fontSize * 1.2,
-        ascent: fontSize * 0.8,
-        descent: fontSize * 0.2
-      };
-      return metrics;
-    }
+  const fontSize = run.marks.fontSize || 16;
 
-    // Set canvas font
-    this.ctx.font = this.getCanvasFont(run.marks);
-    
-    // Measure text
-    const textMetrics = this.ctx.measureText(run.text);
-    
+  if (!this.ctx) {
+    const approximateWidth = run.text.length * fontSize * 0.6;
     const metrics: TextMetrics = {
-      width: textMetrics.width,
-      height: fontSize * 1.2, // Approximate line height
-      ascent: textMetrics.actualBoundingBoxAscent || fontSize * 0.8,
-      descent: textMetrics.actualBoundingBoxDescent || fontSize * 0.2
+      width: approximateWidth,
+      height: fontSize * 1.2,
+      ascent: fontSize * 0.8,
+      descent: fontSize * 0.2,
     };
-
-    // Cache the result
-    this.measurementCache[cacheKey] = metrics;
-    
     return metrics;
   }
 
-  /**
-   * Render text layout to canvas context
-   */
-  renderTextLayout(
-    ctx: CanvasRenderingContext2D,
-    layout: TextLayout,
-    offsetX: number = 0,
-    offsetY: number = 0,
-    selection?: { start: number; end: number }
-  ): void {
-    let charPosition = 0;
-    
-    for (const line of layout.lines) {
-      for (const runLayout of line.runs) {
-        const { run, x, y, baseline } = runLayout;
-        
-        // Set text styling
-        ctx.font = this.getCanvasFont(run.marks);
-        ctx.fillStyle = run.marks.color || '#000000';
-        ctx.textBaseline = 'alphabetic';
+  this.ctx.font = this.getCanvasFont(run.marks);
 
-        // Handle selection highlighting
-        if (selection) {
-          const runStart = charPosition;
-          const runEnd = charPosition + run.text.length;
-          
-          if (selection.start < runEnd && selection.end > runStart) {
-            // Measure partial text for selection highlighting
-            const selStart = Math.max(0, selection.start - runStart);
-            const selEnd = Math.min(run.text.length, selection.end - runStart);
-            
-            if (selStart < selEnd) {
-              const beforeText = run.text.substring(0, selStart);
-              const selectedText = run.text.substring(selStart, selEnd);
-              
-              const beforeWidth = beforeText ? ctx.measureText(beforeText).width : 0;
-              const selectedWidth = ctx.measureText(selectedText).width;
-              
-              // Draw selection background
-              ctx.fillStyle = '#3B82F6'; // Blue selection
-              ctx.fillRect(
-                offsetX + x + beforeWidth,
-                offsetY + y,
-                selectedWidth,
-                runLayout.height
-              );
-            }
-          }
-        }
+  const textMetrics = this.ctx.measureText(run.text);
 
-        // Draw text
-        ctx.fillStyle = run.marks.color || '#000000';
-        
-        // Handle text styling
-        if (run.marks.bold) {
-          ctx.font = ctx.font.replace('normal', 'bold');
-        }
-        
-        ctx.fillText(run.text, offsetX + x, offsetY + y + baseline);
-        
-        // Handle underline
-        if (run.marks.underline) {
-          ctx.strokeStyle = run.marks.color || '#000000';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(offsetX + x, offsetY + y + baseline + 2);
-          ctx.lineTo(offsetX + x + runLayout.width, offsetY + y + baseline + 2);
-          ctx.stroke();
-        }
-        
-        // Handle strikethrough
-        if (run.marks.strikethrough) {
-          ctx.strokeStyle = run.marks.color || '#000000';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          const strikeY = offsetY + y + baseline - (runLayout.height * 0.3);
-          ctx.moveTo(offsetX + x, strikeY);
-          ctx.lineTo(offsetX + x + runLayout.width, strikeY);
-          ctx.stroke();
-        }
-        
-        charPosition += run.text.length;
-      }
-    }
+  const letterSpacing = run.marks.letterSpacing || 0;
+  const metrics: TextMetrics = {
+    width: textMetrics.width + letterSpacing * Math.max(0, run.text.length - 1),
+    height: fontSize * (run.marks.lineHeight || 1.2),
+    ascent: textMetrics.actualBoundingBoxAscent || fontSize * 0.8,
+    descent: textMetrics.actualBoundingBoxDescent || fontSize * 0.2,
+  };
+
+  this.measurementCache[cacheKey] = metrics;
+  return metrics;
+}
+
+/**
+ * Render a laid out text block centered at the given position.
+ *
+ * The function assumes the element's local origin is the center of the
+ * text block. It draws an optional background rectangle using the layout's
+ * measured width/height plus padding and then renders each run using
+ * `textAlign="center"` and `textBaseline="middle"`.
+ */
+renderTextLayout(
+  ctx: CanvasRenderingContext2D,
+  layout: TextLayout,
+  offsetX: number = 0,
+  offsetY: number = 0,
+  options: {
+    selection?: { start: number; end: number };
+    backgroundColor?: string;
+    padding?: number;
+    backgroundOpacity?: number;
+    containerWidth?: number;
+  } = {}
+): void {
+  const { selection, backgroundColor, padding = 0, backgroundOpacity = 1, containerWidth } = options;
+
+  const width = containerWidth ?? layout.totalWidth;
+  const height = layout.totalHeight;
+
+  const originX = offsetX - width / 2;
+  const originY = offsetY - height / 2;
+
+  if (backgroundColor && backgroundColor !== 'transparent') {
+    ctx.save();
+    const prevAlpha = ctx.globalAlpha;
+    ctx.globalAlpha = backgroundOpacity;
+    ctx.fillStyle = backgroundColor;
+    const rectX = Math.round(originX - padding);
+    const rectY = Math.round(originY - padding);
+    const rectW = Math.round(width + padding * 2) + 1;
+    const rectH = Math.round(height + padding * 2) + 1;
+    ctx.fillRect(rectX, rectY, rectW, rectH);
+    ctx.globalAlpha = prevAlpha;
+    ctx.restore();
   }
 
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  let charPosition = 0;
+
+  for (const line of layout.lines) {
+    for (const runLayout of line.runs) {
+      const { run, x, y, baseline } = runLayout;
+
+      ctx.font = this.getCanvasFont(run.marks);
+      ctx.fillStyle = run.marks.color || '#000000';
+
+      if (selection) {
+        const runStart = charPosition;
+        const runEnd = charPosition + run.text.length;
+
+        if (selection.start < runEnd && selection.end > runStart) {
+          const selStart = Math.max(0, selection.start - runStart);
+          const selEnd = Math.min(run.text.length, selection.end - runStart);
+
+          if (selStart < selEnd) {
+            const beforeText = run.text.substring(0, selStart);
+            const selectedText = run.text.substring(selStart, selEnd);
+
+            const ls = run.marks.letterSpacing || 0;
+            const beforeWidth = beforeText
+              ? ctx.measureText(beforeText).width + ls * Math.max(0, beforeText.length - 1)
+              : 0;
+            const selectedWidth =
+              ctx.measureText(selectedText).width + ls * Math.max(0, selectedText.length - 1);
+
+            ctx.fillStyle = '#3B82F6';
+            ctx.fillRect(
+              originX + x + beforeWidth,
+              originY + y,
+              selectedWidth,
+              runLayout.height
+            );
+            ctx.fillStyle = run.marks.color || '#000000';
+          }
+        }
+      }
+
+      if (run.marks.bold) {
+        ctx.font = ctx.font.replace('normal', 'bold');
+      }
+
+      const runCenterX = originX + x + runLayout.width / 2;
+      const runCenterY = originY + y + runLayout.height / 2;
+
+      if (run.marks.letterSpacing) {
+        let cursorX = originX + x;
+        for (const ch of run.text) {
+          const chWidth = ctx.measureText(ch).width;
+          ctx.fillText(ch, cursorX + chWidth / 2, runCenterY);
+          cursorX += chWidth + run.marks.letterSpacing;
+        }
+      } else {
+        ctx.fillText(run.text, runCenterX, runCenterY);
+      }
+
+      if (run.marks.underline) {
+        ctx.strokeStyle = run.marks.color || '#000000';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        const baseY = originY + y + baseline;
+        ctx.moveTo(originX + x, baseY + 2);
+        ctx.lineTo(originX + x + runLayout.width, baseY + 2);
+        ctx.stroke();
+      }
+
+      if (run.marks.strikethrough) {
+        ctx.strokeStyle = run.marks.color || '#000000';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        const baseY = originY + y + baseline;
+        const strikeY = baseY - runLayout.height * 0.3;
+        ctx.moveTo(originX + x, strikeY);
+        ctx.lineTo(originX + x + runLayout.width, strikeY);
+        ctx.stroke();
+      }
+
+      charPosition += run.text.length;
+    }
+  }
+}
   /**
    * Get character position from pixel coordinates
    */
@@ -412,39 +473,50 @@ export class TextLayoutEngine {
 
   // Private helper methods
 
-  private finalizeLine(runs: RunLayout[], y: number, lineIndex: number, lineHeight: number): LineLayout {
-    const width = runs.reduce((sum, run) => sum + run.width, 0);
-    const height = runs.reduce((max, run) => Math.max(max, run.height), lineHeight);
-    const baseline = runs.reduce((max, run) => Math.max(max, run.baseline), height * 0.8);
-    
-    return {
-      runs,
-      x: 0,
-      y,
-      width,
-      height,
-      baseline,
-      lineIndex
-    };
+private finalizeLine(
+  runs: RunLayout[],
+  y: number,
+  lineIndex: number,
+  containerWidth?: number
+): LineLayout {
+  const width = runs.reduce((sum, run) => sum + run.width, 0);
+  const height = runs.reduce((max, run) => Math.max(max, run.height), 0);
+  const baseline = runs.reduce((max, run) => Math.max(max, run.baseline), 0);
+  const offsetX = containerWidth !== undefined ? (containerWidth - width) / 2 : 0;
+
+  for (const run of runs) {
+    run.x += offsetX;
+    run.y = y;
+    run.lineIndex = lineIndex;
   }
 
-  private getRunCacheKey(run: TextRun): string {
-    const marks = run.marks;
-    return `${run.text}|${marks.fontSize || 16}|${marks.fontFamily || 'Arial'}|${marks.bold ? 'b' : ''}|${marks.italic ? 'i' : ''}|v${this.cacheVersion}`;
-  }
+  return {
+    runs,
+    x: offsetX,
+    y,
+    width,
+    height,
+    baseline,
+    lineIndex,
+  };
+}
 
-  private getCanvasFont(marks: TextMarks): string {
-    const fontSize = marks.fontSize || 16;
-    const fontFamily = marks.fontFamily || 'Arial, sans-serif';
-    const weight = marks.bold ? 'bold' : 'normal';
-    const style = marks.italic ? 'italic' : 'normal';
-    
-    return `${style} ${weight} ${fontSize}px ${fontFamily}`;
-  }
+private getRunCacheKey(run: TextRun): string {
+  const marks = run.marks;
+  const weight = marks.fontWeight || (marks.bold ? 'bold' : 'normal');
+  const italic = marks.italic ? 'italic' : 'normal';
+  const ls = marks.letterSpacing || 0;
+  const lh = marks.lineHeight || 1.2;
+  return `${run.text}|${marks.fontSize || 16}|${marks.fontFamily || 'Arial'}|${weight}|${italic}|ls:${ls}|lh:${lh}|v${this.cacheVersion}`;
+}
 
-  private getLineHeight(marks: TextMarks): number {
-    return (marks.fontSize || 16) * 1.2;
-  }
+private getCanvasFont(marks: TextMarks): string {
+  const fontSize = marks.fontSize || 16;
+  const fontFamily = marks.fontFamily || 'Arial, sans-serif';
+  const weight = marks.fontWeight || (marks.bold ? 'bold' : 'normal');
+  const style = marks.italic ? 'italic' : 'normal';
+  return `${style} ${weight} ${fontSize}px ${fontFamily}`;
+}
 
   private getCharacterWithinRun(run: TextRun, x: number): number {
     if (!this.ctx) {
